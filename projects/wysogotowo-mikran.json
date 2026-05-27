@@ -9,10 +9,11 @@
     "computerCount": 22,
     "minWarehouseTempC": 15,
     "maxWarehouseTempC": 15,
-    "minOfficeTempC": 20,
+    "minOfficeTempC": 15,
     "maxOfficeTempC": 22,
-    "reservePercent": 20,
+    "reservePercent": 15,
     "useAlternativeHeatingCooling": true,
+    "normalHvacDeratingFactor": 0.65,
     "zones": [
       {
         "id": "warehouse",
@@ -27,15 +28,15 @@
         "name": "Biuro",
         "type": "office",
         "areaM2": 700,
-        "minTempC": 20,
+        "minTempC": 15,
         "maxTempC": 22
       }
     ],
     "energyStorage": {
-      "enabled": true,
+      "enabled": false,
       "capacityKwh": 120,
-      "chargePowerKw": 50,
-      "dischargePowerKw": 50,
+      "chargePowerKw": 20,
+      "dischargePowerKw": 20,
       "mode": "peakShaving",
       "roundTripEfficiencyPercent": 92
     },
@@ -58,11 +59,12 @@
       "phase": "3P",
       "voltageV": 400,
       "scenarios": [
-        "normal",
         "winter"
       ],
       "cop": 1.75,
-      "thermalDensityUnit": "Wm2"
+      "thermalDensityUnit": "Wm2",
+      "copMinus20C": 1.75,
+      "copNormal": 3.5
     },
     {
       "id": "device-heat-pump-warehouse",
@@ -80,12 +82,13 @@
       "phase": "3P",
       "voltageV": 400,
       "scenarios": [
-        "winter",
-        "normal"
+        "winter"
       ],
       "notes": "Zasilanie ogrzewania magazynu w okresie zimowym.",
       "cop": 1.75,
-      "thermalDensityUnit": "Wm3"
+      "thermalDensityUnit": "Wm3",
+      "copMinus20C": 1.75,
+      "copNormal": 3.5
     },
     {
       "id": "device-f889f28b-bd48-48d7-a779-f2670e1561ef",
@@ -104,7 +107,9 @@
       "phase": "3P",
       "voltageV": 400,
       "scenarios": [
-        "normal"
+        "normal",
+        "summer",
+        "winter"
       ]
     },
     {
@@ -145,11 +150,12 @@
       "phase": "1P",
       "voltageV": 230,
       "scenarios": [
-        "summer",
-        "normal"
+        "summer"
       ],
       "thermalDensityUnit": "Wm2",
-      "cop": 3.5
+      "cop": 3.5,
+      "copMinus20C": 3.5,
+      "copNormal": 3.5
     },
     {
       "id": "device-led-warehouse",
@@ -243,7 +249,7 @@
       "id": "device-office-computers",
       "name": "Komputery stanowiskowe",
       "categoryId": "sockets",
-      "zoneId": "office",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
       "powerInputMode": "manual",
       "quantityInputMode": "computers",
       "quantity": 32,
@@ -256,7 +262,8 @@
       "scenarios": [
         "normal",
         "summer",
-        "backup"
+        "backup",
+        "winter"
       ],
       "notes": "Ilość pobierana z parametru liczby komputerów w projekcie.",
       "powerDensityWm2": 0
@@ -265,7 +272,7 @@
       "id": "device-workstations-sockets",
       "name": "Gniazda stanowisk pracy",
       "categoryId": "sockets",
-      "zoneId": "office",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
       "powerInputMode": "manual",
       "quantityInputMode": "people",
       "quantity": 35,
@@ -305,7 +312,9 @@
         "normal",
         "summer",
         "winter"
-      ]
+      ],
+      "copMinus20C": 3.5,
+      "copNormal": 3.5
     },
     {
       "id": "device-69bac02c-faf2-4a31-b514-b62abf79e06a",
@@ -369,7 +378,9 @@
       "phase": "3P",
       "voltageV": 400,
       "scenarios": [
-        "normal"
+        "normal",
+        "summer",
+        "winter"
       ]
     },
     {
@@ -389,7 +400,9 @@
       "phase": "3P",
       "voltageV": 400,
       "scenarios": [
-        "normal"
+        "normal",
+        "summer",
+        "winter"
       ]
     }
   ]

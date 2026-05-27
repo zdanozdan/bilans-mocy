@@ -1,29 +1,47 @@
-import { deviceCategories } from '../../domain/defaults'
-import type { GroupedBalanceRow, ProjectBalance, ScenarioBalance } from '../../domain/types'
+import { usesCopThermalConversion } from '../../domain/calculations'
+import {
+  defaultHeatPumpCopMinus20C,
+  defaultHeatPumpCopNormal,
+  deviceCategories,
+} from '../../domain/defaults'
+import type {
+  Device,
+  GroupedBalanceRow,
+  HvacAlternativeBalance,
+  ProjectBalance,
+  ProjectConfig,
+  ScenarioBalance,
+} from '../../domain/types'
+import {
+  buildHvacCategoryTableNote,
+  buildHvacScenarioSummaryLine,
+  getHvacPoblCellSuffix,
+  isHvacRowExcludedFromScenarioSum,
+} from '../../domain/hvacDisplay'
+import { buildHeatDemandRows } from '../../domain/heatDemandDisplay'
+import {
+  buildCoolingDemandRows,
+  buildDeviceNotesRows,
+  buildDeviceScenarioMatrix,
+  buildLlmReviewPrompt,
+  buildProjectAssumptionRows,
+  buildScenarioDescriptionRows,
+} from '../../domain/projectAssumptionsDisplay'
+import { scenarios as defaultScenarios } from '../../domain/defaults'
+import { getZoneDisplayName } from '../../domain/zones'
 
 /** Stały opis celu raportu (przyłącze Enea, Mikran Wysogotowo). */
-const REPORT_PURPOSE = `Niniejszy bilans mocy został sporządzony w celu ustalenia wymaganej mocy przyłącza energetycznego do obiektu firmy Mikran, ul. Zbożowa, Wysogotowo, na potrzeby postępowania w sprawie przyłączenia do sieci dystrybucyjnej Enea (operator sieci dystrybucyjnej).
+const REPORT_PURPOSE = `Niniejszy bilans mocy został sporządzony w celu ustalenia wymaganej mocy przyłącza energetycznego do obiektu handlowego firmy Mikran, ul. Zbożowa, Wysogotowo (godziny pracy obiektu: 8:00–16:00), na potrzeby postępowania w sprawie przyłączenia do sieci dystrybucyjnej Enea (operator sieci dystrybucyjnej).
 
 Dokument zestawia szacunkowe moce zainstalowane (Pinst) i obliczeniowe (Pobl) odbiorników według stref i kategorii, w wariantach scenariuszowych (praca normalna, zima, lato, tryb rezerwowy), z uwzględnieniem rezerwy mocy oraz — jeśli skonfigurowano — wpływu magazynu energii. Na tej podstawie wyznaczana jest szacunkowa moc netto potrzebna do doboru mocy umownej przyłącza.
 
 Wyniki mają charakter szacunkowy i opierają się na założeniach wskazanych w tabelach poniżej; ostateczną moc przyłącza określa operator sieci po weryfikacji dokumentacji i warunków przyłączenia.`
 
-/** Prompt do wklejenia lub przekazania modelowi LLM wraz z tym PDF. */
-const LLM_REVIEW_PROMPT = `Jesteś doświadczonym inżynierem elektrykiem i specjalistą od przyłączeń do sieci dystrybucyjnej w Polsce. Przeanalizuj załączony raport bilansu mocy (PDF) dla obiektu firmy Mikran, ul. Zbożowa, Wysogotowo — dokument przygotowywany pod ustalenie mocy przyłącza od operatora Enea.
-
-Oceń:
-1. Czy wyznaczona moc netto i proponowana wielkość przyłącza są realistyczne dla tego typu obiektu (magazyn z częścią biurową, serwerownia, technologia produkcyjna)?
-2. Czy w obliczeniach i założeniach (współczynniki jednoczesności i wykorzystania, rezerwa, scenariusze sezonowe, COP pomp ciepła / klimatyzacji / CWU, magazyn energii, rozróżnienie mocy cieplnej i elektrycznej) nie ma błędów logicznych lub rażących nieścisłości?
-3. Czego brakuje w bilansie lub dokumentacji, aby złożyć wiarygodne zgłoszenie do operatora (np. współczynnik mocy, moc bierna, rozdzielenie faz, prądy rozruchowe, UPS i zasilanie rezerwowe, normy PN-EN, tabele jednoczesności branżowych)?
-4. Jakie korekty lub dodatkowe dane rekomendujesz przed złożeniem do Enea?
-
-Odpowiedz strukturalnie po polsku, wskazując konkretne tabele, scenariusze i pozycje z PDF, gdzie to możliwe. Rozróżniaj usterki krytyczne od sugestii ulepszeń.`
-
 const GLOSSARY_ITEMS: Array<{ term: string; description: string }> = [
   {
     term: 'Pinst — moc zainstalowana [kW]',
     description:
-      'Suma mocy elektrycznych urządzeń „na papierze”, jakby wszystkie pracowały jednocześnie na pełnej mocy znamionowej. Przy zwykłych odbiornikach: ilość × moc jednostkowa [kW] albo powierzchnia × gęstość mocy [W/m²]. Przy pompach ciepła, klimatyzacji i CWU (gdy liczone z powierzchni lub osób): najpierw wyznacza się moc termiczną, potem dzieli przez COP — stąd w tabeli odbiorników osobne kolumny Pciel/Pchł/PcWU.',
+      'Suma mocy elektrycznych urządzeń „na papierze”, jakby wszystkie pracowały jednocześnie na pełnej mocy znamionowej. Przy zwykłych odbiornikach: ilość × moc jednostkowa [kW] albo powierzchnia × gęstość mocy [W/m²]. Przy pompach ciepła, klimatyzacji i CWU: moc termiczna ÷ COP(-20°C) — stąd kolumny Pciel/Pchł/PcWU.',
   },
   {
     term: 'Pobl — moc obliczeniowa [kW]',
@@ -46,9 +64,14 @@ const GLOSSARY_ITEMS: Array<{ term: string; description: string }> = [
       'Dla ogrzewania (Pciel), chłodzenia (Pchł) i ciepłej wody użytkowej (PcWU): moc cieplna lub chłodnicza przed przeliczeniem na prąd. Kolumny „Pciel i” / „Pciel o” to odpowiednio moc termiczna zainstalowana i obliczeniowa (po kd i kw). Przy braku COP (zwykły odbiornik) kolumny termiczne mają „—”.',
   },
   {
-    term: 'COP',
+    term: 'COP (-20°C)',
     description:
-      'Współczynnik wydajności urządzenia grzewczego lub chłodniczego: ile kW ciepła (lub chłodu) daje 1 kW energii elektrycznej. Im wyższy COP, tym mniejsza moc elektryczna przy tej samej mocy termicznej. Przykład: 40 kW ciepła ÷ COP 3,5 ≈ 11,4 kW el. w Pinst.',
+      'Współczynnik wydajności przy ok. -20°C — do bilansu przyłącza. Im niższy COP (mróz), tym wyższa moc elektryczna przy tej samej mocy termicznej. Przykład: 40 kW ciepła ÷ COP 1,75 ≈ 22,9 kW el. w Pinst.',
+  },
+  {
+    term: 'COP (normalny)',
+    description:
+      'COP w warunkach katalogowych (np. +7°C) — informacyjnie, nie zmienia sum Pinst/Pobl w tym raporcie. Służy do porównania z kartą katalogową producenta.',
   },
   {
     term: 'S — moc pozorna [kVA]',
@@ -65,10 +88,328 @@ const GLOSSARY_ITEMS: Array<{ term: string; description: string }> = [
     description:
       'Jeśli skonfigurowano magazyn energii, końcowa moc netto jest skorygowana o ładowanie, rozładowanie lub redukcję szczytu (zależnie od trybu). Różnica między „po magazynie” a „bez magazynu” pokazuje, o ile magazyn zmienia wymaganą moc przyłącza w danym scenariuszu.',
   },
+  {
+    term: 'HVAC alternatywnie (ogrzewanie / klimatyzacja)',
+    description:
+      'Zima/Lato: do sumy wliczany jest większy szczyt sezonowy (mniejsza kategoria „poza sumą”). Praca normalna: średnia z ogrzewania i klimatyzacji gdy obie aktywne, albo obniżony udział szczytu gdy aktywna jest tylko jedna — aby nie utożsamiać pracy typowej ze skrajnym mrozem. Suma wierszy tabeli kategorii nie musi równać się mocy obliczeniowej scenariusza.',
+  },
 ]
 
 const formatPower = (value: number) => `${value.toFixed(2)} kW`
 const formatKva = (value: number) => `${value.toFixed(2)} kVA`
+const formatPowerDelta = (deltaKw: number) => {
+  if (Math.abs(deltaKw) < 0.005) {
+    return '0,00 kW'
+  }
+
+  return `${deltaKw > 0 ? '+' : ''}${deltaKw.toFixed(2)} kW`
+}
+
+const buildScenarioSummaryRows = (
+  scenarioBalance: ScenarioBalance,
+  project: ProjectConfig,
+): Array<[string, string]> => {
+  const { hvacAlternative, energyStorageAdjustmentKw } = scenarioBalance
+  const storageDeltaKw = scenarioBalance.netPowerKw - scenarioBalance.totalWithReserveKw
+
+  const rows: Array<[string, string]> = [
+    ['Pinst — moc zainstalowana', formatPower(scenarioBalance.installedPowerKw)],
+    ['Pobl — moc obliczeniowa (do bilansu)', formatPower(scenarioBalance.calculatedPowerKw)],
+    ['S — moc pozorna', formatKva(scenarioBalance.apparentPowerKva)],
+    [
+      `Rezerwa projektowa (${project.reservePercent}%)`,
+      formatPower(scenarioBalance.reservePowerKw),
+    ],
+    ['Netto bez magazynu (Pobl + rezerwa)', formatPower(scenarioBalance.totalWithReserveKw)],
+  ]
+
+  if (project.energyStorage.enabled) {
+    rows.push(['Korekta magazynu energii', formatPower(energyStorageAdjustmentKw)])
+    rows.push(['Netto po magazynie', formatPower(scenarioBalance.netPowerKw)])
+    rows.push(['Różnica magazynu (po − bez)', formatPowerDelta(storageDeltaKw)])
+  } else {
+    rows.push(['Moc netto (bez magazynu w projekcie)', formatPower(scenarioBalance.netPowerKw)])
+  }
+
+  if (hvacAlternative.applied) {
+    rows.push(
+      ['HVAC — ogrzewanie (Pobl w tabeli kategorii)', formatPower(hvacAlternative.heatingCalculatedPowerKw)],
+      ['HVAC — klimatyzacja (Pobl w tabeli kategorii)', formatPower(hvacAlternative.coolingCalculatedPowerKw)],
+      [
+        'HVAC — nie wliczono do sumy Pobl',
+        `${hvacAlternative.excludedCategoryId === 'cooling' ? 'klimatyzacja' : 'ogrzewanie'} (${formatPower(hvacAlternative.excludedCalculatedPowerKw)})`,
+      ],
+    )
+  }
+
+  rows.push(['Liczba aktywnych odbiorników', String(scenarioBalance.devices.length)])
+
+  return rows
+}
+
+const buildScenarioSummaryText = (scenarioBalance: ScenarioBalance): string | null => {
+  const parts: string[] = []
+  const hvacLine = buildHvacScenarioSummaryLine(scenarioBalance.hvacAlternative)
+
+  if (hvacLine) {
+    parts.push(hvacLine)
+  }
+
+  const storageDeltaKw = scenarioBalance.netPowerKw - scenarioBalance.totalWithReserveKw
+
+  if (Math.abs(storageDeltaKw) > 0.005) {
+    parts.push(
+      `Magazyn energii: moc netto ${formatPower(scenarioBalance.netPowerKw)} (korekta ${formatPowerDelta(storageDeltaKw)} względem sumy z rezerwą ${formatPower(scenarioBalance.totalWithReserveKw)}).`,
+    )
+  }
+
+  if (parts.length === 0) {
+    return `Scenariusz „${scenarioBalance.scenario.name}”: moc obliczeniowa ${formatPower(scenarioBalance.calculatedPowerKw)} + rezerwa → netto ${formatPower(scenarioBalance.netPowerKw)}.`
+  }
+
+  return parts.join(' ')
+}
+
+function PrintScenarioPowerSummary({
+  scenarioBalance,
+  project,
+}: {
+  scenarioBalance: ScenarioBalance
+  project: ProjectConfig
+}) {
+  return (
+    <div className="print-block print-scenario-summary">
+      <h4>Podsumowanie mocy</h4>
+      <PrintTable
+        compact
+        headers={['Parametr', 'Wartość']}
+        rows={buildScenarioSummaryRows(scenarioBalance, project)}
+      />
+    </div>
+  )
+}
+
+function PrintProjectAssumptionsSection({
+  balance,
+  devices,
+  project,
+}: {
+  balance: ProjectBalance
+  devices: Device[]
+  project: ProjectConfig
+}) {
+  const assumptionRows = buildProjectAssumptionRows(project, balance)
+  const scenarioRows = buildScenarioDescriptionRows(defaultScenarios)
+  const coolingRows = buildCoolingDemandRows(project, devices)
+  const deviceMatrix = buildDeviceScenarioMatrix(devices, defaultScenarios)
+  const noteRows = buildDeviceNotesRows(devices)
+
+  return (
+    <section className="print-project-assumptions">
+      <h2>Założenia projektowe</h2>
+      <p className="print-assumptions-lead">
+        Metodologia i dane wejściowe bilansu — uzupełnienie tabel wynikowych scenariuszy.
+      </p>
+
+      <div className="print-block">
+        <h3 className="print-assumptions-h3">Ogólne</h3>
+        <PrintTable compact headers={['Założenie', 'Wartość']} rows={assumptionRows} />
+      </div>
+
+      <div className="print-block">
+        <h3 className="print-assumptions-h3">Znaczenie scenariuszy</h3>
+        <PrintTable compact headers={['Scenariusz', 'Opis']} rows={scenarioRows} />
+      </div>
+
+      {coolingRows.length > 0 ? (
+        <div className="print-block">
+          <h3 className="print-assumptions-h3">Zapotrzebowanie na chłód (przyjęte)</h3>
+          <PrintTable
+            compact
+            headers={['Odbiornik', 'Gęstość / strefa']}
+            rows={coolingRows}
+          />
+        </div>
+      ) : null}
+
+      <div className="print-block">
+        <h3 className="print-assumptions-h3">
+          Które odbiorniki wliczamy do bilansu w danym scenariuszu
+        </h3>
+        <PrintDeviceScenarioMatrixTable
+          headers={deviceMatrix.headers}
+          rows={deviceMatrix.rows}
+        />
+        <p className="print-scenario-matrix-legend">
+          <PrintScenarioInclusionMark active />
+          {' '}
+          — odbiornik wliczony: jego Pinst i Pobl wchodzą do sum w tabelach tego scenariusza.{' '}
+          <PrintScenarioInclusionMark active={false} />
+          {' '}
+          — pominięty w tym wariancie (nie liczy się do mocy). Przypisanie ustawiasz w tabeli
+          urządzeń projektu (checkboxy przy scenariuszach).
+        </p>
+      </div>
+
+      {noteRows.length > 0 ? (
+        <div className="print-block">
+          <h3 className="print-assumptions-h3">Uwagi do odbiorników</h3>
+          <PrintTable compact headers={['Odbiornik', 'Uwaga']} rows={noteRows} />
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function PrintCopAssumptionsSection({
+  devices,
+  project,
+}: {
+  devices: Device[]
+  project: ProjectConfig
+}) {
+  const copDevices = devices.filter((device) => usesCopThermalConversion(device.categoryId))
+
+  const copRows = copDevices.map((device) => {
+    const category =
+      deviceCategories.find((item) => item.id === device.categoryId)?.name ?? device.categoryId
+    const copMinus20C = device.copMinus20C ?? device.cop ?? defaultHeatPumpCopMinus20C
+    const copNormal = device.copNormal ?? defaultHeatPumpCopNormal
+
+    return [
+      device.name,
+      category,
+      getZoneDisplayName(project, device.zoneId),
+      copMinus20C.toFixed(2),
+      copNormal.toFixed(2),
+    ]
+  })
+
+  return (
+    <section className="print-cop-assumptions">
+      <h2>Przyjęte współczynniki COP</h2>
+      <p className="print-cop-lead">
+        Dla pomp ciepła, klimatyzacji i CWU (liczone z mocy termicznej). Do bilansu mocy
+        przyłącza stosowany jest <strong>COP (-20°C)</strong>; COP (normalny) podany
+        informacyjnie (np. katalog producenta przy +7°C).
+      </p>
+      {copRows.length > 0 ? (
+        <PrintTable
+          className="print-table-cop"
+          compact
+          headers={['Odbiornik', 'Kategoria', 'Strefa', 'COP (-20°C)', 'COP (normalny)']}
+          rows={copRows}
+        />
+      ) : (
+        <p className="print-muted">Brak urządzeń z przeliczeniem termicznym / COP w projekcie.</p>
+      )}
+      <p className="print-muted print-cop-defaults">
+        Domyślne wartości przy nowym urządzeniu: COP (-20°C) ={' '}
+        {defaultHeatPumpCopMinus20C.toFixed(2)}, COP (normalny) ={' '}
+        {defaultHeatPumpCopNormal.toFixed(2)}.
+      </p>
+    </section>
+  )
+}
+
+function PrintScenariosOverviewTable({ scenarios }: { scenarios: ScenarioBalance[] }) {
+  if (scenarios.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="print-block print-scenarios-overview">
+      <h3>Porównanie scenariuszy — podsumowanie mocy</h3>
+      <PrintTable
+        className="print-table-scenarios-overview"
+        compact
+        headers={[
+          'Scenariusz',
+          'Pinst',
+          'Pobl',
+          'Rezerwa',
+          'Netto bez mag.',
+          'Netto po mag.',
+          'S',
+        ]}
+        rows={scenarios.map((item) => [
+          item.scenario.name,
+          item.installedPowerKw.toFixed(2),
+          item.calculatedPowerKw.toFixed(2),
+          item.reservePowerKw.toFixed(2),
+          item.totalWithReserveKw.toFixed(2),
+          item.netPowerKw.toFixed(2),
+          item.apparentPowerKva.toFixed(2),
+        ])}
+      />
+      <p className="print-muted print-overview-hint">
+        Wartości w kW (S w kVA). „Netto po mag.” uwzględnia korektę magazynu energii w danym
+        scenariuszu. Szczegóły HVAC i podziały — w sekcjach poniżej.
+      </p>
+    </div>
+  )
+}
+
+function PrintScenarioInclusionMark({ active }: { active: boolean }) {
+  if (active) {
+    return (
+      <span className="print-scenario-mark print-scenario-yes" title="Wliczony do bilansu">
+        ✓
+      </span>
+    )
+  }
+
+  return (
+    <span className="print-scenario-mark print-scenario-no" title="Pominięty w tym scenariuszu">
+      ✗
+    </span>
+  )
+}
+
+function PrintDeviceScenarioMatrixTable({
+  headers,
+  rows,
+}: {
+  headers: string[]
+  rows: Array<{ name: string; activeInScenarios: boolean[] }>
+}) {
+  const scenarioHeaderCount = Math.max(0, headers.length - 1)
+
+  return (
+    <table className="print-table print-table-compact print-table-scenario-matrix">
+      <colgroup>
+        <col className="print-scenario-matrix-col-name" />
+        {Array.from({ length: scenarioHeaderCount }, (_, index) => (
+          <col className="print-scenario-matrix-col-scenario" key={index} />
+        ))}
+      </colgroup>
+      <thead>
+        <tr>
+          {headers.map((header, index) => (
+            <th
+              className={index > 0 ? 'print-scenario-matrix-col-header' : undefined}
+              key={header}
+            >
+              {header}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.name}>
+            <td>{row.name}</td>
+            {row.activeInScenarios.map((active, index) => (
+              <td className="print-scenario-matrix-cell" key={`${row.name}-${index}`}>
+                <PrintScenarioInclusionMark active={active} />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
 
 function PrintTable({
   className = '',
@@ -109,7 +450,17 @@ function PrintTable({
   )
 }
 
-function PrintGroupTable({ title, rows }: { title: string; rows: GroupedBalanceRow[] }) {
+function PrintGroupTable({
+  title,
+  rows,
+  hvacAlternative,
+  scenarioCalculatedPowerKw,
+}: {
+  title: string
+  rows: GroupedBalanceRow[]
+  hvacAlternative?: HvacAlternativeBalance
+  scenarioCalculatedPowerKw?: number
+}) {
   if (rows.length === 0) {
     return (
       <div className="print-block">
@@ -119,36 +470,51 @@ function PrintGroupTable({ title, rows }: { title: string; rows: GroupedBalanceR
     )
   }
 
+  const hvacNote =
+    hvacAlternative && scenarioCalculatedPowerKw != null
+      ? buildHvacCategoryTableNote(hvacAlternative, rows, scenarioCalculatedPowerKw)
+      : null
+
   return (
     <div className="print-block">
       <h4>{title}</h4>
       <PrintTable
         compact
         headers={['Pozycja', 'Pinst', 'Pobl', 'S']}
-        rows={rows.map((row) => [
-          row.label,
-          row.installedPowerKw.toFixed(2),
-          row.calculatedPowerKw.toFixed(2),
-          row.apparentPowerKva.toFixed(2),
-        ])}
+        rows={rows.map((row) => {
+          const suffix =
+            hvacAlternative != null ? getHvacPoblCellSuffix(hvacAlternative, row.id) : null
+          const excluded =
+            hvacAlternative != null &&
+            isHvacRowExcludedFromScenarioSum(hvacAlternative, row.id)
+          const label = suffix ? `${row.label} (${suffix})` : row.label
+          const poblDisplay = excluded
+            ? `${row.calculatedPowerKw.toFixed(2)}*`
+            : row.calculatedPowerKw.toFixed(2)
+
+          return [label, row.installedPowerKw.toFixed(2), poblDisplay, row.apparentPowerKva.toFixed(2)]
+        })}
       />
+      {hvacNote ? <p className="print-hvac-note">{hvacNote}</p> : null}
+      {hvacNote ? (
+        <p className="print-muted print-hvac-legend">* Pobl poza sumą scenariusza (HVAC alternatywnie)</p>
+      ) : null}
     </div>
   )
 }
 
 function PrintScenarioSection({
   scenarioBalance,
-  zoneNameById,
+  project,
   isFirst,
 }: {
   scenarioBalance: ScenarioBalance
-  zoneNameById: Map<string, string>
+  project: ProjectConfig
   isFirst: boolean
 }) {
   const { scenario, hvacAlternative } = scenarioBalance
 
-  const excludedLabel =
-    hvacAlternative.excludedCategoryId === 'heatPumps' ? 'ogrzewanie' : 'klimatyzacja'
+  const summaryText = buildScenarioSummaryText(scenarioBalance)
 
   const deviceRows = scenarioBalance.devices.map((calculation) => {
     const device = calculation.device
@@ -158,7 +524,7 @@ function PrintScenarioSection({
     return [
       device.name,
       category,
-      zoneNameById.get(device.zoneId) ?? device.zoneId,
+      getZoneDisplayName(project, device.zoneId),
       calculation.resolvedQuantity.toFixed(0),
       calculation.installedPowerKw.toFixed(2),
       calculation.calculatedPowerKw.toFixed(2),
@@ -172,25 +538,19 @@ function PrintScenarioSection({
     <section className={`print-scenario ${isFirst ? 'print-scenario-first' : ''}`}>
       <header className="print-scenario-head">
         <h3>{scenario.name}</h3>
-        <p className="print-scenario-meta">
-          Pinst {formatPower(scenarioBalance.installedPowerKw)} · Pobl{' '}
-          {formatPower(scenarioBalance.calculatedPowerKw)} · Rezerwa{' '}
-          {formatPower(scenarioBalance.reservePowerKw)} · Netto bez magazynu{' '}
-          {formatPower(scenarioBalance.totalWithReserveKw)} ·{' '}
-          <strong>Netto po magazynie {formatPower(scenarioBalance.netPowerKw)}</strong>
-          {' · '}
-          Różnica{' '}
-          {formatPower(scenarioBalance.netPowerKw - scenarioBalance.totalWithReserveKw)}
-          {' · '}
-          S {formatKva(scenarioBalance.apparentPowerKva)}
-          {hvacAlternative.applied
-            ? ` · HVAC: pominięto ${excludedLabel} ${formatPower(hvacAlternative.excludedCalculatedPowerKw)}`
-            : ''}
-        </p>
       </header>
 
+      <PrintScenarioPowerSummary project={project} scenarioBalance={scenarioBalance} />
+
+      {summaryText ? <p className="print-scenario-meta">{summaryText}</p> : null}
+
       <div className="print-split">
-        <PrintGroupTable rows={scenarioBalance.byCategory} title="Kategorie" />
+        <PrintGroupTable
+          hvacAlternative={hvacAlternative}
+          rows={scenarioBalance.byCategory}
+          scenarioCalculatedPowerKw={scenarioBalance.calculatedPowerKw}
+          title="Kategorie"
+        />
         <PrintGroupTable rows={scenarioBalance.byZone} title="Strefy" />
       </div>
 
@@ -221,15 +581,19 @@ function PrintScenarioSection({
   )
 }
 
-export function PrintReport({ balance }: { balance: ProjectBalance }) {
+export function PrintReport({
+  balance,
+  devices,
+}: {
+  balance: ProjectBalance
+  devices: Device[]
+}) {
   const { project, metrics } = balance
   const printedAt = new Date().toLocaleString('pl-PL', {
     dateStyle: 'short',
     timeStyle: 'short',
   })
   const maxNetPower = Math.max(...balance.scenarios.map((item) => item.netPowerKw))
-  const zoneNameById = new Map(project.zones.map((zone) => [zone.id, zone.name]))
-
   const buildingRows = [
     ['Pow. magazynu', `${project.warehouseAreaM2.toFixed(0)} m²`],
     ['Wys. magazynu', `${project.warehouseHeightM.toFixed(1)} m`],
@@ -251,6 +615,8 @@ export function PrintReport({ balance }: { balance: ProjectBalance }) {
       ? `${zone.minTempC}/${zone.maxTempC}`
       : '—',
   ])
+
+  const heatDemandRows = buildHeatDemandRows(project, devices)
 
   const storageRows = project.energyStorage.enabled
     ? [
@@ -307,6 +673,20 @@ export function PrintReport({ balance }: { balance: ProjectBalance }) {
           <div className="print-block">
             <h2>Parametry budynku</h2>
             <PrintTable compact headers={['Parametr', 'Wartość']} rows={buildingRows} />
+            {heatDemandRows.length > 0 ? (
+              <>
+                <h2 className="print-subheading">Zapotrzebowanie na ciepło (przyjęte)</h2>
+                <PrintTable
+                  compact
+                  headers={['Strefa', 'Gęstość mocy cieplnej']}
+                  rows={heatDemandRows}
+                />
+                <p className="print-muted print-heat-hint">
+                  Wartości z pomp ciepła. Magazyn liczony z kubatury: W/m² = W/m³ × wysokość [m].
+                  Moc elektryczna = ciepło ÷ COP(-20°C).
+                </p>
+              </>
+            ) : null}
           </div>
           <div className="print-block">
             <h2>Strefy</h2>
@@ -329,14 +709,19 @@ export function PrintReport({ balance }: { balance: ProjectBalance }) {
         </div>
       </section>
 
+      <PrintCopAssumptionsSection devices={devices} project={project} />
+
+      <PrintProjectAssumptionsSection balance={balance} devices={devices} project={project} />
+
       <section className="print-scenarios-wrap">
         <h2 className="print-scenarios-title">Scenariusze</h2>
+        <PrintScenariosOverviewTable scenarios={balance.scenarios} />
         {balance.scenarios.map((scenarioBalance, index) => (
           <PrintScenarioSection
             isFirst={index === 0}
             key={scenarioBalance.scenario.id}
             scenarioBalance={scenarioBalance}
-            zoneNameById={zoneNameById}
+            project={project}
           />
         ))}
       </section>
@@ -347,7 +732,7 @@ export function PrintReport({ balance }: { balance: ProjectBalance }) {
           Skopiuj poniższy tekst razem z wyeksportowanym PDF i wklej do czatu z modelem (np. ChatGPT,
           Claude, Gemini) jako instrukcję systemową lub pierwszą wiadomość użytkownika.
         </p>
-        <pre className="print-llm-prompt-text">{LLM_REVIEW_PROMPT}</pre>
+        <pre className="print-llm-prompt-text">{buildLlmReviewPrompt(project)}</pre>
       </section>
     </div>
   )

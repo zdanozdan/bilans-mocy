@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react'
 import { ContextHelp } from '../../components/ContextHelp'
+import {
+  buildHvacCategoryTableNote,
+  buildHvacScenarioSummaryLine,
+  getHvacPoblCellSuffix,
+  isHvacRowExcludedFromScenarioSum,
+} from '../../domain/hvacDisplay'
 import type {
   EnergyStorageConfig,
   GroupedBalanceRow,
+  HvacAlternativeBalance,
   ProjectBalance,
   ScenarioBalance,
 } from '../../domain/types'
@@ -93,14 +100,27 @@ function NetPowerComparison({
   )
 }
 
-function GroupTable({ rows }: { rows: GroupedBalanceRow[] }) {
+function GroupTable({
+  rows,
+  hvacAlternative,
+  scenarioCalculatedPowerKw,
+}: {
+  rows: GroupedBalanceRow[]
+  hvacAlternative?: HvacAlternativeBalance
+  scenarioCalculatedPowerKw?: number
+}) {
   if (rows.length === 0) {
     return <p className="empty-state">Brak aktywnych odbiorników w tym scenariuszu.</p>
   }
 
+  const hvacNote =
+    hvacAlternative && scenarioCalculatedPowerKw != null
+      ? buildHvacCategoryTableNote(hvacAlternative, rows, scenarioCalculatedPowerKw)
+      : null
+
   return (
     <div className="table-wrap">
-      <table>
+      <table className={hvacNote ? 'group-table-hvac' : undefined}>
         <thead>
           <tr>
             <th>Pozycja</th>
@@ -110,16 +130,35 @@ function GroupTable({ rows }: { rows: GroupedBalanceRow[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td>{row.label}</td>
-              <td className="numeric">{row.installedPowerKw.toFixed(2)}</td>
-              <td className="numeric strong">{row.calculatedPowerKw.toFixed(2)}</td>
-              <td className="numeric">{row.apparentPowerKva.toFixed(2)}</td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const excluded =
+              hvacAlternative != null &&
+              isHvacRowExcludedFromScenarioSum(hvacAlternative, row.id)
+            const poblSuffix =
+              hvacAlternative != null ? getHvacPoblCellSuffix(hvacAlternative, row.id) : null
+
+            return (
+              <tr
+                className={excluded ? 'hvac-row-excluded' : undefined}
+                key={row.id}
+              >
+                <td>
+                  {row.label}
+                  {poblSuffix ? (
+                    <span className="hvac-row-badge">{poblSuffix}</span>
+                  ) : null}
+                </td>
+                <td className="numeric">{row.installedPowerKw.toFixed(2)}</td>
+                <td className="numeric strong">
+                  {row.calculatedPowerKw.toFixed(2)}
+                </td>
+                <td className="numeric">{row.apparentPowerKva.toFixed(2)}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
+      {hvacNote ? <p className="hvac-table-note">{hvacNote}</p> : null}
     </div>
   )
 }
@@ -140,10 +179,7 @@ export function ResultsView({ balance }: ResultsViewProps) {
     return null
   }
 
-  const excludedHvacLabel =
-    selectedScenario.hvacAlternative.excludedCategoryId === 'heatPumps'
-      ? 'ogrzewanie'
-      : 'klimatyzacja'
+  const hvacSummaryLine = buildHvacScenarioSummaryLine(selectedScenario.hvacAlternative)
 
   const handleCopyTsv = async () => {
     setCopyStatus(null)
@@ -192,7 +228,7 @@ export function ResultsView({ balance }: ResultsViewProps) {
 
       <div className="summary-grid">
         <SummaryCard
-          help="Suma mocy elektrycznych znamionowych (Pinst). Pompa ciepła, klimatyzacja i CWU (z powierzchni): moc termiczna / COP. CWU domyślnie: liczba osób × W/os. Magazyn może być liczony z kubatury × W/m³. Pozostałe odbiorniki: powierzchnia × W/m² lub ilość × kW."
+          help="Suma mocy elektrycznych znamionowych (Pinst). Pompa ciepła, klimatyzacja i CWU (z powierzchni): moc termiczna / COP(-20°C) — do bilansu przyłącza. CWU domyślnie: liczba osób × W/os. Magazyn może być liczony z kubatury × W/m³. Pozostałe odbiorniki: powierzchnia × W/m² lub ilość × kW."
           label="Moc zainstalowana"
           value={formatPower(selectedScenario.installedPowerKw)}
         />
@@ -213,18 +249,25 @@ export function ResultsView({ balance }: ResultsViewProps) {
         />
       </div>
 
-      {selectedScenario.hvacAlternative.applied ? (
-        <p className="info-note">
-          Ogrzewanie i klimatyzacja są liczone alternatywnie. Do bilansu przyjęto większą
-          wartość, a pominięto {excludedHvacLabel}:{' '}
-          {formatPower(selectedScenario.hvacAlternative.excludedCalculatedPowerKw)}.
+      {hvacSummaryLine ? (
+        <p className="info-note info-note-hvac" role="note">
+          {hvacSummaryLine}
         </p>
       ) : null}
 
       <div className="details-grid">
         <div>
-          <h3>Podział wg kategorii</h3>
-          <GroupTable rows={selectedScenario.byCategory} />
+          <div className="subsection-heading-with-help">
+            <h3>Podział wg kategorii</h3>
+            {selectedScenario.hvacAlternative.applied ? (
+              <ContextHelp text="Tabela pokazuje moc każdej kategorii osobno. Ogrzewanie i klimatyzacja nie sumują się do mocy obliczeniowej u góry — wliczana jest tylko większa z nich (oznaczenie „wliczone do sumy scenariusza” / „poza sumą scenariusza”)." />
+            ) : null}
+          </div>
+          <GroupTable
+            hvacAlternative={selectedScenario.hvacAlternative}
+            rows={selectedScenario.byCategory}
+            scenarioCalculatedPowerKw={selectedScenario.calculatedPowerKw}
+          />
         </div>
         <div>
           <h3>Podział wg stref</h3>

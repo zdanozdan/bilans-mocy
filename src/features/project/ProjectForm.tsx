@@ -248,7 +248,21 @@ export function ProjectForm({ project, onChange }: ProjectFormProps) {
               updateProject('useAlternativeHeatingCooling', event.target.checked)
             }
           />
-          Nie sumuj ogrzewania i klimatyzacji
+          Nie sumuj ogrzewania i klimatyzacji (w Zima/Lato: większy szczyt; w Praca normalna: średnia lub obniżenie)
+        </label>
+        <label>
+          HVAC w pracy normalnej — udział szczytu [%]
+          <input
+            max="100"
+            min="5"
+            step="5"
+            title="Gdy w „Pracy normalnej” jest tylko ogrzewanie lub tylko klimatyzacja: jaki procent mocy sezonowej wliczyć do bilansu."
+            type="number"
+            value={Math.round((project.normalHvacDeratingFactor ?? 0.65) * 100)}
+            onChange={(event) =>
+              updateProject('normalHvacDeratingFactor', event.target.valueAsNumber / 100)
+            }
+          />
         </label>
       </div>
 

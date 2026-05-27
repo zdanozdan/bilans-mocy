@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { calculateProjectBalance, usesCopThermalConversion } from './domain/calculations'
+import { resolveDeviceZone } from './domain/zones'
 import {
   defaultDevices,
-  defaultHeatPumpCop,
+  defaultHeatPumpCopMinus20C,
+  defaultHeatPumpCopNormal,
   defaultProject,
   getDefaultThermalDensityUnit,
 } from './domain/defaults'
+import { normalizeDeviceZoneIds } from './domain/zones'
 import type { Device, ProjectConfig } from './domain/types'
 import { DeviceTable } from './features/devices/DeviceTable'
 import { ProjectForm } from './features/project/ProjectForm'
@@ -58,9 +61,11 @@ const normalizeStoredProject = (storedProject: StoredProject): StoredProject => 
   },
   devices:
     storedProject.devices.length > 0
-      ? storedProject.devices.map((device) => {
+      ? normalizeDeviceZoneIds(
+          storedProject.project,
+          storedProject.devices.map((device) => {
           const zoneType =
-            storedProject.project.zones.find((zone) => zone.id === device.zoneId)?.type ?? 'custom'
+            resolveDeviceZone(storedProject.project, device.zoneId)?.type ?? 'custom'
 
           return {
             ...device,
@@ -73,12 +78,22 @@ const normalizeStoredProject = (storedProject: StoredProject): StoredProject => 
                     ? 'Wm2'
                     : getDefaultThermalDensityUnit(zoneType)))
               : device.thermalDensityUnit,
-            cop: usesCopThermalConversion(device.categoryId)
-              ? Math.max(device.cop ?? defaultHeatPumpCop, 0.1)
-              : device.cop,
+            ...(usesCopThermalConversion(device.categoryId)
+              ? {
+                  copMinus20C: Math.max(
+                    device.copMinus20C ?? device.cop ?? defaultHeatPumpCopMinus20C,
+                    0.1,
+                  ),
+                  copNormal: Math.max(
+                    device.copNormal ?? defaultHeatPumpCopNormal,
+                    0.1,
+                  ),
+                }
+              : {}),
             scenarios: device.scenarios?.length > 0 ? device.scenarios : ['normal'],
           }
-        })
+        }),
+        )
       : defaultDevices,
   }
 }
@@ -448,7 +463,7 @@ function App() {
         <ResultsView balance={balance} />
       </div>
 
-      <PrintReport balance={balance} />
+      <PrintReport balance={balance} devices={devices} />
     </main>
   )
 }

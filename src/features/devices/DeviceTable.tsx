@@ -4,10 +4,12 @@ import { NumericInput } from '../../components/NumericInput'
 import {
   calculateDevice,
   getHeatPumpThermalBase,
+  resolveDeviceCopMinus20C,
   usesCopThermalConversion,
 } from '../../domain/calculations'
 import {
-  defaultHeatPumpCop,
+  defaultHeatPumpCopMinus20C,
+  defaultHeatPumpCopNormal,
   deviceCategories,
   defaultCwuThermalDensityWPerPerson,
   getDefaultHeatPumpThermalDensity,
@@ -23,6 +25,7 @@ import type {
   ScenarioId,
   ThermalDensityUnit,
 } from '../../domain/types'
+import { resolveDeviceZone } from '../../domain/zones'
 import { moveItemById } from '../../utils/reorderList'
 
 interface DeviceTableProps {
@@ -49,16 +52,22 @@ const helpUtilizationFactor =
   'Jak mocno i jak długo urządzenie realnie pracuje względem mocy znamionowej. Nawet gdy jest włączone, rzadko cały czas na 100% mocy (obciążenie częściowe, przerwy, sezonowość).'
 
 const helpPinst =
-  'Moc elektryczna zainstalowana (znamionowa). Przy pompach, klimatyzacji i CWU z powierzchni: moc termiczna ÷ COP.'
+  'Moc elektryczna zainstalowana (znamionowa). Przy pompach, klimatyzacji i CWU z powierzchni: moc termiczna ÷ COP(-20°C).'
 
 const helpPobl =
   'Moc elektryczna obliczeniowa do bilansu: Pinst × wsp. jednoczesności × wsp. wykorzystania.'
+
+const helpCopMinus20 =
+  'COP przy ok. -20°C — używany do bilansu mocy i ustalenia przyłącza (gorszy COP = wyższa moc elektryczna w szczycie zimowym).'
+
+const helpCopNormal =
+  'COP w warunkach normalnych (np. katalog, +7°C) — tylko informacyjnie; do sum w bilansie nie wchodzi.'
 
 const helpThermalInst =
   'Moc cieplna lub chłodnicza zainstalowana (pełna, bez współczynników): np. powierzchnia × W/m² lub liczba osób × W/os.'
 
 const helpThermalObl =
-  'Moc termiczna obliczeniowa: wartość inst × wsp. jednoczesności × wsp. wykorzystania. Stąd liczone Pinst (el.) ÷ COP = Pobl (el.).'
+  'Moc termiczna obliczeniowa: wartość inst × wsp. jednoczesności × wsp. wykorzystania. Stąd Pinst (el.) = ciepło ÷ COP(-20°C).'
 
 const FieldLabel = ({ label, help }: { label: string; help: string }) => (
   <span className="field-label-with-help">
@@ -86,7 +95,7 @@ const DeviceTotal = ({
 )
 
 const getZoneType = (project: ProjectConfig, zoneId: string) =>
-  project.zones.find((zone) => zone.id === zoneId)?.type ?? 'custom'
+  resolveDeviceZone(project, zoneId)?.type ?? 'custom'
 
 const createDevice = (project: ProjectConfig): Device => {
   const category = deviceCategories[0]
@@ -108,7 +117,12 @@ const createDevice = (project: ProjectConfig): Device => {
         ? getDefaultHeatPumpThermalDensity(zoneType, thermalUnit)
         : getDefaultPowerDensityWm2(zoneType, category.id),
     thermalDensityUnit: category.id === 'heatPumps' ? thermalUnit : undefined,
-    cop: usesCopThermalConversion(category.id) ? defaultHeatPumpCop : undefined,
+    ...(usesCopThermalConversion(category.id)
+      ? {
+          copMinus20C: defaultHeatPumpCopMinus20C,
+          copNormal: defaultHeatPumpCopNormal,
+        }
+      : {}),
     simultaneityFactor: category.defaultSimultaneityFactor,
     utilizationFactor: category.defaultUtilizationFactor,
     cosPhi: 0.9,
@@ -201,7 +215,12 @@ export function DeviceTable({ devices, project, onChange }: DeviceTableProps) {
       powerInputMode: useAreaPower ? 'area' : device.powerInputMode,
       quantityInputMode:
         categoryId === 'cwu' ? ('people' as const) : device.quantityInputMode,
-      cop: usesCopThermalConversion(categoryId) ? (device.cop ?? defaultHeatPumpCop) : undefined,
+      ...(usesCopThermalConversion(categoryId)
+        ? {
+            copMinus20C: device.copMinus20C ?? device.cop ?? defaultHeatPumpCopMinus20C,
+            copNormal: device.copNormal ?? defaultHeatPumpCopNormal,
+          }
+        : { copMinus20C: undefined, copNormal: undefined, cop: undefined }),
       simultaneityFactor: category?.defaultSimultaneityFactor ?? device.simultaneityFactor,
       utilizationFactor: category?.defaultUtilizationFactor ?? device.utilizationFactor,
       ...(useAreaPower ? applyAreaDefaults(device.zoneId, categoryId) : {}),
@@ -456,34 +475,47 @@ export function DeviceTable({ devices, project, onChange }: DeviceTableProps) {
                     Ustaw sposób mocy na „Z powierzchni”, aby edytować gęstość mocy
                     {usesCop
                       ? usesPeopleThermal
-                        ? ' (liczba osób × W/os., potem / COP).'
+                        ? ' (liczba osób × W/os., potem / COP -20°C).'
                         : thermalUsesVolume
-                          ? ' (kubatura × W/m³, potem / COP).'
+                          ? ' (kubatura × W/m³, potem / COP -20°C).'
                           : isHeatPump
-                            ? ' (moc cieplna z m², potem / COP).'
+                            ? ' (moc cieplna z m², potem / COP -20°C).'
                             : isCooling
-                              ? ' (moc chłodnicza z m², potem / COP).'
-                              : ' (moc cieplna z m², potem / COP).'
+                              ? ' (moc chłodnicza z m², potem / COP -20°C).'
+                              : ' (moc cieplna z m², potem / COP -20°C).'
                       : '.'}
                   </p>
                 )}
                 {usesCop ? (
-                  <label>
-                    COP [-]
-                    <NumericInput
-                      min={0.1}
-                      step={0.1}
-                      value={device.cop ?? defaultHeatPumpCop}
-                      onValueChange={(cop) => updateDevice(device.id, { cop })}
-                    />
-                  </label>
+                  <div className="cop-fields">
+                    <label>
+                      <FieldLabel help={helpCopMinus20} label="COP (-20°C)" />
+                      <NumericInput
+                        min={0.1}
+                        step={0.1}
+                        value={device.copMinus20C ?? device.cop ?? defaultHeatPumpCopMinus20C}
+                        onValueChange={(copMinus20C) =>
+                          updateDevice(device.id, { copMinus20C, cop: undefined })
+                        }
+                      />
+                    </label>
+                    <label>
+                      <FieldLabel help={helpCopNormal} label="COP (normalny)" />
+                      <NumericInput
+                        min={0.1}
+                        step={0.1}
+                        value={device.copNormal ?? defaultHeatPumpCopNormal}
+                        onValueChange={(copNormal) => updateDevice(device.id, { copNormal })}
+                      />
+                    </label>
+                  </div>
                 ) : null}
                 {usesCop && usesAreaPower ? (
                   <div className="readonly-field">
-                    <span>Moc el. = {isCooling ? 'chłód' : 'ciepło'} / COP</span>
+                    <span>Moc el. = {isCooling ? 'chłód' : 'ciepło'} / COP(-20°C)</span>
                     <strong>
                       {calculation.installedThermalPowerKw!.toFixed(1)} /{' '}
-                      {(device.cop ?? defaultHeatPumpCop).toFixed(1)} ={' '}
+                      {resolveDeviceCopMinus20C(device).toFixed(2)} ={' '}
                       {calculation.installedPowerKw.toFixed(2)} kW
                     </strong>
                   </div>

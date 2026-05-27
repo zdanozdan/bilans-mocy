@@ -462,6 +462,12 @@ td select {
   padding: 10px 12px;
 }
 
+.cop-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
 .field-hint {
   margin: 0;
   align-self: end;
@@ -705,6 +711,51 @@ td select {
   padding: 12px 14px;
 }
 
+.info-note-hvac {
+  line-height: 1.45;
+}
+
+.subsection-heading-with-help {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.subsection-heading-with-help h3 {
+  margin: 0;
+}
+
+.hvac-row-badge {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted, #5c6470);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+tr.hvac-row-excluded td {
+  color: var(--text-muted, #5c6470);
+}
+
+tr.hvac-row-excluded .strong {
+  font-weight: 600;
+  text-decoration: line-through;
+  text-decoration-color: rgba(92, 100, 112, 0.55);
+}
+
+.hvac-table-note {
+  border-left: 3px solid var(--accent);
+  color: var(--text-strong);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+}
+
 .muted {
   max-width: 420px;
   font-size: 14px;
@@ -886,6 +937,18 @@ td select {
   font-size: 7.5pt;
 }
 
+.print-hvac-note {
+  margin: 3px 0 0;
+  font-size: 6.5pt;
+  line-height: 1.35;
+  text-align: justify;
+}
+
+.print-hvac-legend {
+  margin: 1px 0 0;
+  font-size: 6pt;
+}
+
 .print-llm-prompt {
   margin-top: 10px;
   padding-top: 8px;
@@ -932,6 +995,12 @@ td select {
   margin-top: 6px;
 }
 
+.print-heat-hint {
+  margin: 3px 0 0;
+  font-size: 6.5pt;
+  line-height: 1.35;
+}
+
 .print-scenarios-wrap {
   margin-top: 6px;
 }
@@ -940,6 +1009,155 @@ td select {
   margin-bottom: 6px;
   padding-bottom: 3px;
   border-bottom: 1px solid #ccc;
+}
+
+.print-scenarios-overview {
+  margin-bottom: 10px;
+  break-inside: avoid-page;
+}
+
+.print-scenarios-overview h3 {
+  margin: 0 0 4px;
+  font-size: 9.5pt;
+  font-weight: 800;
+}
+
+.print-overview-hint {
+  margin: 3px 0 0;
+}
+
+.print-table-scenarios-overview {
+  font-size: 6.5pt;
+}
+
+.print-scenario-summary {
+  margin-bottom: 4px;
+  break-inside: avoid-page;
+}
+
+.print-scenario-summary h4 {
+  margin: 0 0 3px;
+  font-size: 8pt;
+  font-weight: 800;
+}
+
+.print-project-assumptions {
+  margin: 8px 0 10px;
+  padding: 6px 8px;
+  border: 1px solid #bbb;
+  break-inside: avoid-page;
+}
+
+.print-project-assumptions h2 {
+  margin: 0 0 4px;
+  font-size: 9.5pt;
+  font-weight: 800;
+}
+
+.print-assumptions-lead {
+  margin: 0 0 6px;
+  font-size: 7.5pt;
+  line-height: 1.4;
+}
+
+.print-assumptions-h3 {
+  margin: 0 0 3px;
+  font-size: 8pt;
+  font-weight: 800;
+}
+
+.print-table-scenario-matrix {
+  font-size: 7pt;
+}
+
+.print-table-scenario-matrix col.print-scenario-matrix-col-name {
+  width: 46%;
+}
+
+.print-table-scenario-matrix col.print-scenario-matrix-col-scenario {
+  width: 13.5%;
+}
+
+.print-table-scenario-matrix th.print-scenario-matrix-col-header,
+.print-table-scenario-matrix td.print-scenario-matrix-cell {
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  padding: 2px 4px;
+}
+
+.print-table-scenario-matrix th:first-child,
+.print-table-scenario-matrix td:first-child {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.print-scenario-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.print-scenario-yes {
+  width: 1.15em;
+  height: 1.15em;
+  border: 1.5px solid #1a7f37;
+  border-radius: 2px;
+  background: #daf0e0;
+  color: #1a7f37;
+  font-size: 0.95em;
+  font-weight: 800;
+}
+
+.print-scenario-no {
+  color: #c41e3a;
+  font-size: 1.2em;
+  font-weight: 800;
+}
+
+.print-scenario-matrix-legend {
+  margin: 4px 0 0;
+  font-size: 6.5pt;
+  line-height: 1.45;
+  color: #333;
+}
+
+.print-scenario-matrix-legend .print-scenario-mark {
+  margin: 0 1px;
+}
+
+.print-cop-assumptions {
+  margin: 8px 0 10px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  break-inside: avoid-page;
+}
+
+.print-cop-assumptions h2 {
+  margin: 0 0 4px;
+  font-size: 9pt;
+  font-weight: 800;
+}
+
+.print-cop-lead {
+  margin: 0 0 5px;
+  font-size: 7.5pt;
+  line-height: 1.4;
+}
+
+.print-cop-defaults {
+  margin: 4px 0 0;
+  font-size: 6.5pt;
+}
+
+.print-table-cop {
+  font-size: 7pt;
 }
 
 .print-scenario {
@@ -966,10 +1184,13 @@ td select {
 }
 
 .print-scenario-meta {
-  margin: 0 0 4px;
-  font-size: 7.5pt;
+  margin: 0 0 6px;
+  padding: 4px 6px;
+  border-left: 2px solid #888;
+  font-size: 7pt;
   color: #333;
-  line-height: 1.35;
+  line-height: 1.4;
+  text-align: justify;
 }
 
 .print-scenario-meta strong {
@@ -1107,6 +1328,10 @@ td select {
 
   .print-purpose,
   .print-glossary,
+  .print-cop-assumptions,
+  .print-project-assumptions,
+  .print-scenarios-overview,
+  .print-scenario-summary,
   .print-llm-prompt {
     break-inside: avoid-page;
   }

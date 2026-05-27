@@ -121,6 +121,27 @@ describe('calculateDevice', () => {
     expect(result.calculatedPowerKw).toBe(6.75)
   })
 
+  it('uses copMinus20C for balance, not copNormal', () => {
+    const withMinus20 = calculateDevice(
+      {
+        ...baseDevice,
+        categoryId: 'heatPumps',
+        zoneId: 'office',
+        powerInputMode: 'area',
+        quantity: 1,
+        powerDensityWm2: 40,
+        thermalDensityUnit: 'Wm2',
+        copMinus20C: 2,
+        copNormal: 5,
+        simultaneityFactor: 1,
+        utilizationFactor: 1,
+      },
+      defaultProject,
+    )
+
+    expect(withMinus20.installedPowerKw).toBe(9)
+  })
+
   it('converts heat pump thermal area power to electrical using COP', () => {
     const result = calculateDevice(
       {
@@ -195,6 +216,26 @@ describe('calculateProjectMetrics', () => {
 })
 
 describe('calculateProjectBalance', () => {
+  it('merges legacy and current office zone ids under one Polish label', () => {
+    const officeZoneId = 'zone-biuro-uuid'
+    const project = {
+      ...defaultProject,
+      zones: defaultProject.zones.map((zone) =>
+        zone.id === 'office' ? { ...zone, id: officeZoneId, name: 'Biuro' } : zone,
+      ),
+    }
+    const devices: Device[] = [
+      { ...baseDevice, id: 'd-office-legacy', zoneId: 'office' },
+      { ...baseDevice, id: 'd-office-new', zoneId: officeZoneId, unitPowerKw: 5 },
+    ]
+
+    const result = calculateProjectBalance(project, devices, scenarios)
+    const normalScenario = result.scenarios.find((item) => item.scenario.id === 'normal')
+
+    expect(normalScenario?.byZone).toHaveLength(1)
+    expect(normalScenario?.byZone[0].label).toBe('Biuro')
+  })
+
   it('groups active devices by category and zone for a scenario', () => {
     const result = calculateProjectBalance(defaultProject, [baseDevice], scenarios)
     const normalScenario = result.scenarios.find((item) => item.scenario.id === 'normal')
@@ -286,10 +327,50 @@ describe('calculateProjectBalance', () => {
     const result = calculateProjectBalance(project, [heatDevice, coolingDevice, otherDevice], scenarios)
     const normalScenario = result.scenarios.find((item) => item.scenario.id === 'normal')
 
-    expect(normalScenario?.calculatedPowerKw).toBe(40)
+    expect(normalScenario?.calculatedPowerKw).toBe(35)
     expect(normalScenario?.hvacAlternative.applied).toBe(true)
-    expect(normalScenario?.hvacAlternative.excludedCategoryId).toBe('cooling')
-    expect(normalScenario?.hvacAlternative.excludedCalculatedPowerKw).toBe(20)
+    expect(normalScenario?.hvacAlternative.mode).toBe('normalAverage')
+    expect(normalScenario?.hvacAlternative.hvacContributionKw).toBe(25)
+    expect(normalScenario?.hvacAlternative.excludedCalculatedPowerKw).toBe(25)
+  })
+
+  it('uses full seasonal peak for winter when both HVAC categories are active', () => {
+    const project = {
+      ...defaultProject,
+      reservePercent: 0,
+      useAlternativeHeatingCooling: true,
+      energyStorage: { ...defaultProject.energyStorage, enabled: false },
+    }
+    const heatDevice: Device = {
+      ...baseDevice,
+      id: 'heat',
+      categoryId: 'heatPumps',
+      scenarios: ['normal', 'winter'],
+      quantity: 1,
+      unitPowerKw: 30,
+      simultaneityFactor: 1,
+      utilizationFactor: 1,
+      cosPhi: 1,
+    }
+    const coolingDevice: Device = {
+      ...baseDevice,
+      id: 'cooling',
+      categoryId: 'cooling',
+      scenarios: ['normal', 'winter'],
+      quantity: 1,
+      unitPowerKw: 20,
+      simultaneityFactor: 1,
+      utilizationFactor: 1,
+      cosPhi: 1,
+    }
+
+    const result = calculateProjectBalance(project, [heatDevice, coolingDevice], scenarios)
+    const normalScenario = result.scenarios.find((item) => item.scenario.id === 'normal')
+    const winterScenario = result.scenarios.find((item) => item.scenario.id === 'winter')
+
+    expect(normalScenario?.calculatedPowerKw).toBe(25)
+    expect(winterScenario?.calculatedPowerKw).toBe(30)
+    expect(winterScenario?.hvacAlternative.mode).toBe('seasonalPeak')
   })
 
   it('sums heating and cooling when HVAC alternative mode is disabled', () => {

@@ -1,5 +1,11 @@
 import { deviceCategories } from '../domain/defaults'
-import type { GroupedBalanceRow, ProjectBalance } from '../domain/types'
+import {
+  buildHvacCategoryTableNote,
+  buildHvacScenarioSummaryLine,
+  getHvacPoblCellSuffix,
+} from '../domain/hvacDisplay'
+import { getZoneDisplayName } from '../domain/zones'
+import type { GroupedBalanceRow, HvacAlternativeBalance, ProjectBalance } from '../domain/types'
 
 const escapeTsvCell = (value: string | number): string => {
   const text = String(value)
@@ -19,14 +25,19 @@ const appendGroupedTable = (
   lines: string[],
   title: string,
   rows: GroupedBalanceRow[],
+  hvacAlternative?: HvacAlternativeBalance,
+  scenarioCalculatedPowerKw?: number,
 ) => {
   lines.push(title)
   lines.push(tsvRow('Pozycja', 'Pinst [kW]', 'Pobl [kW]', 'S [kVA]'))
 
   for (const row of rows) {
+    const suffix = hvacAlternative ? getHvacPoblCellSuffix(hvacAlternative, row.id) : null
+    const label = suffix ? `${row.label} (${suffix})` : row.label
+
     lines.push(
       tsvRow(
-        row.label,
+        label,
         row.installedPowerKw.toFixed(2),
         row.calculatedPowerKw.toFixed(2),
         row.apparentPowerKva.toFixed(2),
@@ -38,14 +49,21 @@ const appendGroupedTable = (
     lines.push(tsvRow('Brak danych', '', '', ''))
   }
 
+  const hvacNote =
+    hvacAlternative && scenarioCalculatedPowerKw != null
+      ? buildHvacCategoryTableNote(hvacAlternative, rows, scenarioCalculatedPowerKw)
+      : null
+
+  if (hvacNote) {
+    lines.push(tsvRow('Uwaga', hvacNote))
+  }
+
   lines.push(blankRow())
 }
 
 export const buildBalanceTsv = (balance: ProjectBalance): string => {
   const { project, metrics } = balance
   const lines: string[] = []
-  const zoneNameById = new Map(project.zones.map((zone) => [zone.id, zone.name]))
-
   lines.push(tsvRow('Bilans energii', project.name))
   lines.push(tsvRow('Typ budynku', project.buildingType))
   lines.push(blankRow())
@@ -80,20 +98,26 @@ export const buildBalanceTsv = (balance: ProjectBalance): string => {
     lines.push(tsvRow('Suma z rezerwą [kW]', scenarioBalance.totalWithReserveKw.toFixed(2)))
     lines.push(tsvRow('Korekta magazynu energii [kW]', scenarioBalance.energyStorageAdjustmentKw.toFixed(2)))
     lines.push(tsvRow('Moc netto po magazynie [kW]', scenarioBalance.netPowerKw.toFixed(2)))
+    const hvacSummary = buildHvacScenarioSummaryLine(hvacAlternative)
     lines.push(
       tsvRow(
         'HVAC alternatywnie',
-        hvacAlternative.applied
-          ? `Tak, pominięto ${hvacAlternative.excludedCalculatedPowerKw.toFixed(2)} kW`
-          : hvacAlternative.enabled
-            ? 'Włączone, bez jednoczesnego ogrzewania i klimatyzacji'
-            : 'Wyłączone',
+        hvacSummary ??
+          (hvacAlternative.enabled
+            ? 'Włączone, bez jednoczesnego ogrzewania i klimatyzacji w tym scenariuszu'
+            : 'Wyłączone'),
       ),
     )
     lines.push(tsvRow('Liczba aktywnych odbiorników', scenarioBalance.devices.length))
     lines.push(blankRow())
 
-    appendGroupedTable(lines, 'Podział wg kategorii', scenarioBalance.byCategory)
+    appendGroupedTable(
+      lines,
+      'Podział wg kategorii',
+      scenarioBalance.byCategory,
+      hvacAlternative,
+      scenarioBalance.calculatedPowerKw,
+    )
     appendGroupedTable(lines, 'Podział wg stref', scenarioBalance.byZone)
 
     lines.push('Aktywne odbiorniki')
@@ -120,7 +144,7 @@ export const buildBalanceTsv = (balance: ProjectBalance): string => {
         tsvRow(
           device.name,
           category,
-          zoneNameById.get(device.zoneId) ?? device.zoneId,
+          getZoneDisplayName(project, device.zoneId),
           calculation.resolvedQuantity.toFixed(0),
           calculation.installedPowerKw.toFixed(2),
           calculation.calculatedPowerKw.toFixed(2),

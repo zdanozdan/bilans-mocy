@@ -61,7 +61,12 @@ export const zonePowerDensityDefaults: Record<Zone['type'], ZonePowerDensityDefa
   },
 }
 
-export const defaultHeatPumpCop = 3.5
+/** COP w warunkach normalnych (informacyjnie). */
+export const defaultHeatPumpCopNormal = 3.5
+/** COP przy -20°C — do bilansu mocy przyłącza. */
+export const defaultHeatPumpCopMinus20C = 1.75
+/** @deprecated Użyj defaultHeatPumpCopNormal */
+export const defaultHeatPumpCop = defaultHeatPumpCopNormal
 
 export const getDefaultPowerDensityWm2 = (
   zoneType: Zone['type'],
@@ -75,7 +80,8 @@ export const scenarios: Scenario[] = [
   {
     id: 'normal',
     name: 'Praca normalna',
-    description: 'Standardowa praca budynku bez skrajnych warunków pogodowych.',
+    description:
+      'Typowa praca budynku: odbiorniki bazowe; HVAC w bilansie jako średnia sezonowa lub obniżony udział szczytu (nie pełne ogrzewanie zimowe).',
   },
   {
     id: 'winter',
@@ -195,6 +201,7 @@ export const defaultProject: ProjectConfig = {
   maxOfficeTempC: 26,
   reservePercent: 15,
   useAlternativeHeatingCooling: true,
+  normalHvacDeratingFactor: 0.65,
   zones: [
     {
       id: 'warehouse',
@@ -253,14 +260,15 @@ export const defaultDevices: Device[] = [
     unitPowerKw: 56,
     powerDensityWm2: 2.25,
     thermalDensityUnit: 'Wm3',
-    cop: defaultHeatPumpCop,
+    copMinus20C: defaultHeatPumpCopMinus20C,
+    copNormal: defaultHeatPumpCopNormal,
     simultaneityFactor: 0.9,
     utilizationFactor: 0.85,
     cosPhi: 0.92,
     phase: '3P',
     voltageV: 400,
-    scenarios: ['winter', 'normal'],
-    notes: 'Moc cieplna: kubatura magazynu × W/m³, moc elektryczna = ciepło / COP.',
+    scenarios: ['winter'],
+    notes: 'Moc cieplna: kubatura magazynu × W/m³, moc elektryczna = ciepło / COP(-20°C). Scenariusz zimowy.',
   },
   {
     id: 'device-heat-pump-office',
@@ -273,14 +281,15 @@ export const defaultDevices: Device[] = [
     unitPowerKw: 18,
     powerDensityWm2: 40,
     thermalDensityUnit: 'Wm2',
-    cop: defaultHeatPumpCop,
+    copMinus20C: defaultHeatPumpCopMinus20C,
+    copNormal: defaultHeatPumpCopNormal,
     simultaneityFactor: 0.9,
     utilizationFactor: 0.85,
     cosPhi: 0.92,
     phase: '3P',
     voltageV: 400,
-    scenarios: ['winter', 'normal'],
-    notes: 'Moc cieplna z W/m2, moc elektryczna = ciepło / COP.',
+    scenarios: ['winter'],
+    notes: 'Moc cieplna z W/m2, moc elektryczna = ciepło / COP(-20°C). Scenariusz zimowy.',
   },
   {
     id: 'device-office-ac',
@@ -292,14 +301,15 @@ export const defaultDevices: Device[] = [
     quantity: 1,
     unitPowerKw: 21,
     powerDensityWm2: 45,
-    cop: defaultHeatPumpCop,
+    copMinus20C: defaultHeatPumpCopMinus20C,
+    copNormal: defaultHeatPumpCopNormal,
     simultaneityFactor: 0.8,
     utilizationFactor: 0.8,
     cosPhi: 0.9,
     phase: '1P',
     voltageV: 230,
-    scenarios: ['summer', 'normal'],
-    notes: 'Moc chłodnicza z W/m2, moc elektryczna = chłód / COP.',
+    scenarios: ['summer'],
+    notes: 'Moc chłodnicza z W/m2, moc elektryczna = chłód / COP(-20°C). Scenariusz letni.',
   },
   {
     id: 'device-office-cwu',
@@ -311,14 +321,15 @@ export const defaultDevices: Device[] = [
     quantity: 1,
     unitPowerKw: 5,
     powerDensityWm2: defaultCwuThermalDensityWPerPerson,
-    cop: defaultHeatPumpCop,
+    copMinus20C: defaultHeatPumpCopMinus20C,
+    copNormal: defaultHeatPumpCopNormal,
     simultaneityFactor: 0.7,
     utilizationFactor: 0.65,
     cosPhi: 0.92,
     phase: '3P',
     voltageV: 400,
     scenarios: ['normal', 'winter'],
-    notes: 'Moc cieplna: liczba osób × W/os., moc elektryczna = ciepło / COP.',
+    notes: 'Moc cieplna: liczba osób × W/os., moc elektryczna = ciepło / COP(-20°C).',
   },
   {
     id: 'device-ahu',

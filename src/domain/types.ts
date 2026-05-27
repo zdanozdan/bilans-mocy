@@ -73,6 +73,11 @@ export interface ProjectConfig {
   maxOfficeTempC: number
   reservePercent: number
   useAlternativeHeatingCooling: boolean
+  /**
+   * W scenariuszu „Praca normalna”, gdy aktywne jest tylko ogrzewanie lub tylko chłodzenie:
+   * jaki udział szczytu sezonowego wliczyć do bilansu (np. 0,65 = 65%).
+   */
+  normalHvacDeratingFactor?: number
   /** Nazwa pliku JSON do zapisu (np. wysogotowo-mikran.json). */
   exportFileName?: string
   zones: Zone[]
@@ -91,8 +96,15 @@ export interface Device {
   powerDensityWm2?: number
   /** Dla pomp ciepła: W/m² = od powierzchni, W/m³ = od kubatury. */
   thermalDensityUnit?: ThermalDensityUnit
-  /** Pompa ciepła, klimatyzacja, CWU: moc termiczna / COP → moc elektryczna. */
+  /**
+   * COP przy -20°C — do bilansu mocy i przyłącza (wyższa moc el. przy niskim COP).
+   * @deprecated Stare pliki JSON — używaj copMinus20C; przy wczytywaniu `cop` jest mapowane.
+   */
   cop?: number
+  /** COP przy -20°C — używany w obliczeniach Pinst/Pobl. */
+  copMinus20C?: number
+  /** COP w warunkach normalnych — informacyjnie (np. katalog producenta). */
+  copNormal?: number
   simultaneityFactor: number
   utilizationFactor: number
   cosPhi: number
@@ -130,11 +142,17 @@ export interface GroupedBalanceRow {
   apparentPowerKva: number
 }
 
+export type HvacAlternativeMode = 'seasonalPeak' | 'normalAverage' | 'normalDerated'
+
 export interface HvacAlternativeBalance {
   enabled: boolean
   applied: boolean
+  /** Jak ogrzewanie i klimatyzacja wchodzą do sumy scenariusza. */
+  mode?: HvacAlternativeMode
   heatingCalculatedPowerKw: number
   coolingCalculatedPowerKw: number
+  /** Moc HVAC faktycznie wliczona do Pobl scenariusza (po korekcie). */
+  hvacContributionKw?: number
   excludedCategoryId?: 'heatPumps' | 'cooling'
   excludedCalculatedPowerKw: number
 }
