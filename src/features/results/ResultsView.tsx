@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'react'
-import type { GroupedBalanceRow, ProjectBalance } from '../../domain/types'
+import { ContextHelp } from '../../components/ContextHelp'
+import type {
+  EnergyStorageConfig,
+  GroupedBalanceRow,
+  ProjectBalance,
+  ScenarioBalance,
+} from '../../domain/types'
+import { buildBalanceTsv, copyTextToClipboard } from '../../utils/exportBalanceTsv'
 
 interface ResultsViewProps {
   balance: ProjectBalance
@@ -7,15 +14,6 @@ interface ResultsViewProps {
 
 const formatPower = (value: number) => `${value.toFixed(2)} kW`
 const formatKva = (value: number) => `${value.toFixed(2)} kVA`
-
-function ContextHelp({ text }: { text: string }) {
-  return (
-    <details className="context-help">
-      <summary aria-label="Pokaż wyjaśnienie">?</summary>
-      <p>{text}</p>
-    </details>
-  )
-}
 
 function SummaryCard({
   label,
@@ -36,6 +34,62 @@ function SummaryCard({
       </div>
       <strong>{value}</strong>
     </article>
+  )
+}
+
+const formatDelta = (deltaKw: number) => {
+  if (Math.abs(deltaKw) < 0.005) {
+    return '0.00 kW'
+  }
+
+  return `${deltaKw > 0 ? '+' : ''}${deltaKw.toFixed(2)} kW`
+}
+
+function NetPowerComparison({
+  scenario,
+  storage,
+}: {
+  scenario: ScenarioBalance
+  storage: EnergyStorageConfig
+}) {
+  const netWithoutStorage = scenario.totalWithReserveKw
+  const netWithStorage = scenario.netPowerKw
+  const differenceKw = netWithStorage - netWithoutStorage
+  const storageActive =
+    storage.enabled && storage.mode !== 'neutral' && Math.abs(scenario.energyStorageAdjustmentKw) > 0.005
+
+  return (
+    <div className="net-power-comparison" aria-label="Porównanie mocy netto">
+      <div className="net-power-comparison-heading">
+        <h3>Moc netto scenariusza</h3>
+        <ContextHelp text="Bez magazynu: moc obliczeniowa + rezerwa projektowa. Po magazynie: ta sama suma skorygowana o ładowanie, rozładowanie lub redukcję szczytu (zależnie od trybu magazynu). Różnica pokazuje wpływ magazynu na końcowe zapotrzebowanie." />
+      </div>
+      <div className="net-power-comparison-grid">
+        <article className="net-power-card">
+          <span>Bez magazynu</span>
+          <strong>{formatPower(netWithoutStorage)}</strong>
+          <p className="net-power-card-hint">Pobl + rezerwa</p>
+        </article>
+        <div className="net-power-delta" aria-label="Różnica">
+          <span>Różnica</span>
+          <strong className={differenceKw < 0 ? 'is-lower' : differenceKw > 0 ? 'is-higher' : ''}>
+            {formatDelta(differenceKw)}
+          </strong>
+          {storageActive ? (
+            <p className="net-power-card-hint">
+              Korekta: {formatPower(scenario.energyStorageAdjustmentKw)}
+            </p>
+          ) : (
+            <p className="net-power-card-hint">Brak korekty magazynu</p>
+          )}
+        </div>
+        <article className="net-power-card net-power-card-highlight">
+          <span>Po magazynie</span>
+          <strong>{formatPower(netWithStorage)}</strong>
+          <p className="net-power-card-hint">Suma z rezerwą ± magazyn</p>
+        </article>
+      </div>
+    </div>
   )
 }
 
@@ -71,6 +125,7 @@ function GroupTable({ rows }: { rows: GroupedBalanceRow[] }) {
 }
 
 export function ResultsView({ balance }: ResultsViewProps) {
+  const [copyStatus, setCopyStatus] = useState<string | null>(null)
   const [selectedScenarioId, setSelectedScenarioId] = useState(
     balance.scenarios[0]?.scenario.id ?? 'normal',
   )
@@ -90,6 +145,17 @@ export function ResultsView({ balance }: ResultsViewProps) {
       ? 'ogrzewanie'
       : 'klimatyzacja'
 
+  const handleCopyTsv = async () => {
+    setCopyStatus(null)
+
+    try {
+      await copyTextToClipboard(buildBalanceTsv(balance))
+      setCopyStatus('Skopiowano do schowka — wklej w Arkusze Google (Ctrl+V / Cmd+V).')
+    } catch {
+      setCopyStatus('Nie udało się skopiować. Sprawdź uprawnienia schowka w przeglądarce.')
+    }
+  }
+
   return (
     <section className="panel results-panel" aria-labelledby="results-heading">
       <div className="section-heading">
@@ -98,11 +164,16 @@ export function ResultsView({ balance }: ResultsViewProps) {
           <h2 id="results-heading">Bilans mocy</h2>
         </div>
         <div className="action-row">
+          <button className="secondary" type="button" onClick={() => void handleCopyTsv()}>
+            Kopiuj TSV do schowka
+          </button>
           <button className="secondary" type="button" onClick={() => window.print()}>
             Drukuj / PDF
           </button>
         </div>
       </div>
+
+      {copyStatus ? <p className="info-text">{copyStatus}</p> : null}
 
       <div className="scenario-tabs" role="tablist" aria-label="Scenariusze obliczeniowe">
         {balance.scenarios.map((scenarioBalance) => (
@@ -121,7 +192,7 @@ export function ResultsView({ balance }: ResultsViewProps) {
 
       <div className="summary-grid">
         <SummaryCard
-          help="Suma mocy znamionowych aktywnych urządzeń w wybranym scenariuszu. Dla urządzeń liczonych z powierzchni jest to powierzchnia strefy razy W/m2, a dla ręcznych: ilość razy moc jednostkowa."
+          help="Suma mocy elektrycznych znamionowych (Pinst). Pompa ciepła, klimatyzacja i CWU (z powierzchni): moc termiczna / COP. CWU domyślnie: liczba osób × W/os. Magazyn może być liczony z kubatury × W/m³. Pozostałe odbiorniki: powierzchnia × W/m² lub ilość × kW."
           label="Moc zainstalowana"
           value={formatPower(selectedScenario.installedPowerKw)}
         />
@@ -136,10 +207,9 @@ export function ResultsView({ balance }: ResultsViewProps) {
           value={formatPower(selectedScenario.reservePowerKw)}
         />
         <SummaryCard
-          help="Końcowa moc po dodaniu rezerwy i korekcie magazynu energii. Ładowanie magazynu zwiększa zapotrzebowanie, a rozładowanie lub redukcja szczytu je zmniejsza."
-          highlight
-          label="Moc netto po magazynie"
-          value={formatPower(selectedScenario.netPowerKw)}
+          help="Suma mocy obliczeniowej i rezerwy projektowej, przed uwzględnieniem magazynu energii (ładowanie / rozładowanie / redukcja szczytu)."
+          label="Suma z rezerwą"
+          value={formatPower(selectedScenario.totalWithReserveKw)}
         />
       </div>
 
@@ -186,10 +256,6 @@ export function ResultsView({ balance }: ResultsViewProps) {
                 </td>
               </tr>
               <tr>
-                <th>Suma z rezerwą</th>
-                <td>{formatPower(selectedScenario.totalWithReserveKw)}</td>
-              </tr>
-              <tr>
                 <th>Ogrzewanie / klimatyzacja alternatywnie</th>
                 <td>
                   {selectedScenario.hvacAlternative.enabled
@@ -211,6 +277,8 @@ export function ResultsView({ balance }: ResultsViewProps) {
           </table>
         </div>
       </div>
+
+      <NetPowerComparison scenario={selectedScenario} storage={balance.project.energyStorage} />
     </section>
   )
 }

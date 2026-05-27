@@ -1,4 +1,73 @@
-import type { Device, DeviceCategory, ProjectConfig, Scenario } from './types'
+import type {
+  Device,
+  DeviceCategory,
+  DeviceCategoryId,
+  ProjectConfig,
+  Scenario,
+  ThermalDensityUnit,
+  Zone,
+} from './types'
+
+type ZonePowerDensityDefaults = Partial<Record<DeviceCategoryId | 'default', number>>
+
+const heatPumpThermalDensityDefaults: Record<Zone['type'], Record<ThermalDensityUnit, number>> = {
+  warehouse: { Wm2: 18, Wm3: 2.25 },
+  office: { Wm2: 40, Wm3: 3.5 },
+  serverRoom: { Wm2: 50, Wm3: 4 },
+  technical: { Wm2: 25, Wm3: 2.5 },
+  common: { Wm2: 20, Wm3: 2 },
+  custom: { Wm2: 20, Wm3: 2 },
+}
+
+export const getDefaultThermalDensityUnit = (zoneType: Zone['type']): ThermalDensityUnit =>
+  zoneType === 'warehouse' ? 'Wm3' : 'Wm2'
+
+export const getDefaultHeatPumpThermalDensity = (
+  zoneType: Zone['type'],
+  unit: ThermalDensityUnit,
+): number => heatPumpThermalDensityDefaults[zoneType]?.[unit] ?? (unit === 'Wm3' ? 2.25 : 20)
+
+/** Domyślna moc cieplna CWU na osobę [W/os.] (przy trybie „liczba osób”). */
+export const defaultCwuThermalDensityWPerPerson = 350
+
+export const zonePowerDensityDefaults: Record<Zone['type'], ZonePowerDensityDefaults> = {
+  warehouse: {
+    lighting: 8,
+    default: 10,
+  },
+  office: {
+    cooling: 45,
+    cwu: defaultCwuThermalDensityWPerPerson,
+    kitchen: 35,
+    default: 40,
+  },
+  serverRoom: {
+    cooling: 80,
+    serverRoom: 90,
+    default: 50,
+  },
+  technical: {
+    ventilation: 15,
+    default: 12,
+  },
+  common: {
+    kitchen: 40,
+    default: 12,
+  },
+  custom: {
+    default: 10,
+  },
+}
+
+export const defaultHeatPumpCop = 3.5
+
+export const getDefaultPowerDensityWm2 = (
+  zoneType: Zone['type'],
+  categoryId: DeviceCategoryId,
+): number => {
+  const zoneDefaults = zonePowerDensityDefaults[zoneType] ?? zonePowerDensityDefaults.custom
+  return zoneDefaults[categoryId] ?? zoneDefaults.default ?? 10
+}
 
 export const scenarios: Scenario[] = [
   {
@@ -37,10 +106,22 @@ export const deviceCategories: DeviceCategory[] = [
     defaultUtilizationFactor: 0.8,
   },
   {
+    id: 'cwu',
+    name: 'CWU — ciepła woda użytkowa',
+    defaultSimultaneityFactor: 0.7,
+    defaultUtilizationFactor: 0.65,
+  },
+  {
     id: 'ventilation',
     name: 'Wentylacja',
     defaultSimultaneityFactor: 0.95,
     defaultUtilizationFactor: 0.9,
+  },
+  {
+    id: 'kitchen',
+    name: 'Kuchnie',
+    defaultSimultaneityFactor: 0.75,
+    defaultUtilizationFactor: 0.65,
   },
   {
     id: 'lighting',
@@ -106,6 +187,7 @@ export const defaultProject: ProjectConfig = {
       name: 'Magazyn',
       type: 'warehouse',
       areaM2: 3000,
+      heightM: 8,
       minTempC: 8,
       maxTempC: 28,
     },
@@ -114,6 +196,7 @@ export const defaultProject: ProjectConfig = {
       name: 'Biuro',
       type: 'office',
       areaM2: 450,
+      heightM: 3,
       minTempC: 20,
       maxTempC: 26,
     },
@@ -154,14 +237,36 @@ export const defaultDevices: Device[] = [
     quantityInputMode: 'manual',
     quantity: 1,
     unitPowerKw: 56,
-    powerDensityWm2: 18,
+    powerDensityWm2: 2.25,
+    thermalDensityUnit: 'Wm3',
+    cop: defaultHeatPumpCop,
     simultaneityFactor: 0.9,
     utilizationFactor: 0.85,
     cosPhi: 0.92,
     phase: '3P',
     voltageV: 400,
     scenarios: ['winter', 'normal'],
-    notes: 'Zasilanie ogrzewania magazynu w okresie zimowym.',
+    notes: 'Moc cieplna: kubatura magazynu × W/m³, moc elektryczna = ciepło / COP.',
+  },
+  {
+    id: 'device-heat-pump-office',
+    name: 'Pompa ciepła biura',
+    categoryId: 'heatPumps',
+    zoneId: 'office',
+    powerInputMode: 'area',
+    quantityInputMode: 'manual',
+    quantity: 1,
+    unitPowerKw: 18,
+    powerDensityWm2: 40,
+    thermalDensityUnit: 'Wm2',
+    cop: defaultHeatPumpCop,
+    simultaneityFactor: 0.9,
+    utilizationFactor: 0.85,
+    cosPhi: 0.92,
+    phase: '3P',
+    voltageV: 400,
+    scenarios: ['winter', 'normal'],
+    notes: 'Moc cieplna z W/m2, moc elektryczna = ciepło / COP.',
   },
   {
     id: 'device-office-ac',
@@ -173,12 +278,33 @@ export const defaultDevices: Device[] = [
     quantity: 1,
     unitPowerKw: 21,
     powerDensityWm2: 45,
+    cop: defaultHeatPumpCop,
     simultaneityFactor: 0.8,
     utilizationFactor: 0.8,
     cosPhi: 0.9,
     phase: '1P',
     voltageV: 230,
     scenarios: ['summer', 'normal'],
+    notes: 'Moc chłodnicza z W/m2, moc elektryczna = chłód / COP.',
+  },
+  {
+    id: 'device-office-cwu',
+    name: 'CWU — ciepła woda biura',
+    categoryId: 'cwu',
+    zoneId: 'office',
+    powerInputMode: 'area',
+    quantityInputMode: 'people',
+    quantity: 1,
+    unitPowerKw: 5,
+    powerDensityWm2: defaultCwuThermalDensityWPerPerson,
+    cop: defaultHeatPumpCop,
+    simultaneityFactor: 0.7,
+    utilizationFactor: 0.65,
+    cosPhi: 0.92,
+    phase: '3P',
+    voltageV: 400,
+    scenarios: ['normal', 'winter'],
+    notes: 'Moc cieplna: liczba osób × W/os., moc elektryczna = ciepło / COP.',
   },
   {
     id: 'device-ahu',

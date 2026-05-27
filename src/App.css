@@ -16,9 +16,28 @@
 .hero-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
+  gap: 16px 24px;
   align-items: start;
   padding: 32px;
+}
+
+.hero-intro {
+  min-width: 0;
+}
+
+.hero-description {
+  max-width: 780px;
+  margin: 0;
+}
+
+.hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .hero-card h1 {
@@ -27,6 +46,19 @@
   font-size: clamp(32px, 5vw, 62px);
   line-height: 0.98;
   letter-spacing: -0.05em;
+}
+
+.hero-title-field {
+  max-width: 780px;
+  margin-top: 6px;
+}
+
+.hero-title-field input {
+  font-size: clamp(24px, 4vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  padding: 14px 16px;
 }
 
 .hero-card p {
@@ -39,6 +71,11 @@
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+  align-self: start;
+}
+
+.hero-actions {
+  max-width: min(100%, 360px);
 }
 
 .layout {
@@ -193,6 +230,30 @@ button.danger {
   display: none;
 }
 
+.hidden-file-input {
+  display: none;
+}
+
+.project-file-name-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.project-file-name-field input {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.project-file-path {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
 .checkbox-label,
 .mini-check {
   display: flex;
@@ -242,6 +303,11 @@ tr:last-child th {
   border-bottom: 0;
 }
 
+.is-new-row td {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.25);
+}
+
 td input,
 td select {
   min-width: 110px;
@@ -264,6 +330,12 @@ td select {
   gap: 14px;
 }
 
+.device-list-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
 .device-card {
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -271,12 +343,43 @@ td select {
   padding: 16px;
 }
 
+.device-card.is-new {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
 .device-card-header {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto;
+  grid-template-columns: auto minmax(220px, 1fr) auto auto;
   gap: 12px;
   align-items: end;
   margin-bottom: 14px;
+}
+
+.device-order-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.device-order-button {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-strong);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  min-height: 32px;
+  min-width: 36px;
+  padding: 4px 8px;
+}
+
+.device-order-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
 }
 
 .device-name-field input {
@@ -290,7 +393,8 @@ td select {
   justify-content: flex-end;
 }
 
-.device-totals span {
+.device-totals span,
+.device-total-item {
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
@@ -299,6 +403,26 @@ td select {
   font-weight: 800;
   padding: 9px 12px;
   white-space: nowrap;
+}
+
+.device-total-label,
+.field-label-with-help {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.device-total-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.field-label-with-help {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .device-totals strong {
@@ -336,6 +460,19 @@ td select {
   border-radius: 12px;
   background: var(--surface);
   padding: 10px 12px;
+}
+
+.field-hint {
+  margin: 0;
+  align-self: end;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.field-hint-warning {
+  color: var(--danger);
+  font-weight: 600;
 }
 
 .readonly-field span {
@@ -382,8 +519,91 @@ td select {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 14px;
+}
+
+.net-power-comparison {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--accent-soft), var(--surface-muted));
+}
+
+.net-power-comparison-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.net-power-comparison-heading h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.net-power-comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.net-power-card,
+.net-power-delta {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.net-power-card span,
+.net-power-delta span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.net-power-card strong,
+.net-power-delta strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-strong);
+  font-size: clamp(24px, 4vw, 32px);
+  line-height: 1.1;
+}
+
+.net-power-card-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.net-power-card-highlight {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.net-power-delta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 110px;
+  background: var(--surface-muted);
+}
+
+.net-power-delta strong.is-lower {
+  color: #15803d;
+}
+
+.net-power-delta strong.is-higher {
+  color: #b45309;
 }
 
 .summary-card {
@@ -461,12 +681,17 @@ td select {
   color: var(--danger);
 }
 
+.info-text {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 13px;
+}
+
 .autosave-note {
-  flex-basis: 100%;
   color: var(--muted);
   font-size: 13px;
   margin: 0;
-  text-align: right;
+  max-width: 72ch;
 }
 
 .info-note {
@@ -489,23 +714,24 @@ td select {
   .hero-card,
   .section-heading {
     grid-template-columns: 1fr;
-    flex-direction: column;
   }
 
   .hero-actions,
   .action-row {
     justify-content: flex-start;
-  }
-
-  .autosave-note {
-    text-align: left;
+    max-width: none;
   }
 
   .form-grid,
   .quick-summary,
   .summary-grid,
-  .details-grid {
+  .details-grid,
+  .net-power-comparison-grid {
     grid-template-columns: 1fr;
+  }
+
+  .net-power-delta {
+    min-width: 0;
   }
 }
 
@@ -539,21 +765,248 @@ td select {
   }
 }
 
+.print-only {
+  display: none;
+}
+
+.print-report {
+  color: #111;
+  font-size: 8pt;
+  line-height: 1.3;
+}
+
+.print-report-header {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #333;
+}
+
+.print-eyebrow {
+  margin: 0 0 2px;
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.print-report-header h1 {
+  margin: 0;
+  font-size: 14pt;
+  line-height: 1.15;
+}
+
+.print-header-sub {
+  margin: 2px 0 0;
+  font-size: 7.5pt;
+  color: #444;
+}
+
+.print-muted {
+  margin: 0;
+  color: #444;
+  font-size: 7.5pt;
+}
+
+.print-intro {
+  margin-bottom: 8px;
+  break-inside: avoid-page;
+}
+
+.print-intro h2,
+.print-scenarios-title,
+.print-subheading {
+  margin: 0 0 4px;
+  font-size: 9pt;
+  font-weight: 800;
+}
+
+.print-subheading {
+  margin-top: 6px;
+}
+
+.print-scenarios-wrap {
+  margin-top: 6px;
+}
+
+.print-scenarios-title {
+  margin-bottom: 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #ccc;
+}
+
+.print-scenario {
+  margin: 0 0 8px;
+  padding: 6px 0 0;
+  border-top: 1px solid #ddd;
+  break-inside: auto;
+}
+
+.print-scenario-first {
+  border-top: none;
+  padding-top: 0;
+}
+
+.print-scenario-head {
+  break-after: avoid-page;
+  break-inside: avoid-page;
+}
+
+.print-scenario h3 {
+  margin: 0 0 2px;
+  font-size: 9.5pt;
+  font-weight: 800;
+}
+
+.print-scenario-meta {
+  margin: 0 0 4px;
+  font-size: 7.5pt;
+  color: #333;
+  line-height: 1.35;
+}
+
+.print-scenario-meta strong {
+  font-weight: 800;
+}
+
+.print-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.print-block {
+  margin: 0 0 4px;
+  break-inside: avoid-page;
+}
+
+.print-block h4 {
+  margin: 0 0 3px;
+  font-size: 8pt;
+  font-weight: 800;
+}
+
+.print-devices-block {
+  break-inside: auto;
+}
+
+.print-devices-block h4 {
+  break-after: avoid-page;
+}
+
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 7.5pt;
+  table-layout: fixed;
+}
+
+.print-table-compact {
+  font-size: 7pt;
+}
+
+.print-table-devices {
+  font-size: 6.5pt;
+}
+
+.print-table th,
+.print-table td {
+  border: 1px solid #aaa;
+  padding: 2px 4px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.print-table th {
+  background: #ececec;
+  font-weight: 700;
+  font-size: 6.5pt;
+  line-height: 1.2;
+}
+
+.print-table-compact th {
+  font-size: 6.5pt;
+}
+
+.print-table td.numeric {
+  text-align: right;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.print-table-devices th:nth-child(1),
+.print-table-devices td:nth-child(1) {
+  width: 14%;
+}
+
+.print-table-devices th:nth-child(2),
+.print-table-devices td:nth-child(2) {
+  width: 16%;
+}
+
+.print-table-devices th:nth-child(3),
+.print-table-devices td:nth-child(3) {
+  width: 9%;
+}
+
 @media print {
-  .hero-actions,
-  .scenario-tabs button:not(.active) {
-    display: none;
+  @page {
+    margin: 10mm 9mm;
+    size: A4 portrait;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .no-print,
+  .app-shell > .no-print {
+    display: none !important;
+  }
+
+  .print-only,
+  .print-report {
+    display: block !important;
   }
 
   .app-shell {
     width: 100%;
+    max-width: none;
+    margin: 0;
     padding: 0;
   }
 
-  .hero-card,
-  .panel,
-  .quick-summary article {
-    box-shadow: none;
+  .print-table thead {
+    display: table-header-group;
+  }
+
+  .print-table tfoot {
+    display: table-footer-group;
+  }
+
+  .print-table tr {
     break-inside: avoid;
+  }
+
+  .print-split {
+    break-inside: avoid-page;
+  }
+
+  .print-scenario-head,
+  .print-block:has(h4) {
+    break-inside: avoid-page;
+  }
+
+  .print-devices-block {
+    break-inside: auto;
+  }
+
+  .context-help {
+    display: none !important;
   }
 }

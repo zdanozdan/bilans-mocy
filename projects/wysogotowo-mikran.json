@@ -1,0 +1,376 @@
+{
+  "project": {
+    "name": "Wysogotowo Mikran",
+    "buildingType": "Magazyn z częścią biurową",
+    "warehouseAreaM2": 588,
+    "warehouseHeightM": 8,
+    "officeAreaM2": 700,
+    "peopleCount": 35,
+    "computerCount": 22,
+    "minWarehouseTempC": 15,
+    "maxWarehouseTempC": 15,
+    "minOfficeTempC": 20,
+    "maxOfficeTempC": 22,
+    "reservePercent": 20,
+    "useAlternativeHeatingCooling": true,
+    "zones": [
+      {
+        "id": "warehouse",
+        "name": "Magazyn",
+        "type": "warehouse",
+        "areaM2": 588,
+        "minTempC": 15,
+        "maxTempC": 15
+      },
+      {
+        "id": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+        "name": "Biuro",
+        "type": "office",
+        "areaM2": 700,
+        "minTempC": 20,
+        "maxTempC": 22
+      }
+    ],
+    "energyStorage": {
+      "enabled": false,
+      "capacityKwh": 120,
+      "chargePowerKw": 50,
+      "dischargePowerKw": 50,
+      "mode": "peakShaving",
+      "roundTripEfficiencyPercent": 92
+    },
+    "exportFileName": "projects/wysogotowo-mikran.json"
+  },
+  "devices": [
+    {
+      "id": "device-787e8a93-9714-4ae9-bfdc-14c0b15ca689",
+      "name": "Ogrzewanie biura PC",
+      "categoryId": "heatPumps",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 1,
+      "powerDensityWm2": 45,
+      "simultaneityFactor": 1,
+      "utilizationFactor": 1,
+      "cosPhi": 0.9,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter"
+      ],
+      "cop": 1.75,
+      "thermalDensityUnit": "Wm2"
+    },
+    {
+      "id": "device-heat-pump-warehouse",
+      "name": "Ogrzewanie  magazynu PC",
+      "categoryId": "heatPumps",
+      "zoneId": "warehouse",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 56,
+      "powerDensityWm2": 7,
+      "simultaneityFactor": 1,
+      "utilizationFactor": 1,
+      "cosPhi": 0.92,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "winter",
+        "normal"
+      ],
+      "notes": "Zasilanie ogrzewania magazynu w okresie zimowym.",
+      "cop": 1.75,
+      "thermalDensityUnit": "Wm3"
+    },
+    {
+      "id": "device-f889f28b-bd48-48d7-a779-f2670e1561ef",
+      "name": "Centrala wentylacyjna biuro",
+      "categoryId": "ventilation",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 1.5,
+      "powerDensityWm2": 40,
+      "thermalDensityUnit": "Wm3",
+      "simultaneityFactor": 0.95,
+      "utilizationFactor": 0.9,
+      "cosPhi": 0.9,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal"
+      ]
+    },
+    {
+      "id": "device-ahu",
+      "name": "Centrala wentylacyjna magazyn",
+      "categoryId": "ventilation",
+      "zoneId": "technical",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 1.5,
+      "simultaneityFactor": 0.95,
+      "utilizationFactor": 0.9,
+      "cosPhi": 0.88,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter",
+        "summer",
+        "backup"
+      ],
+      "powerDensityWm2": 10
+    },
+    {
+      "id": "device-office-ac",
+      "name": "Klimatyzacja biur",
+      "categoryId": "cooling",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 21,
+      "powerDensityWm2": 45,
+      "simultaneityFactor": 0.8,
+      "utilizationFactor": 0.8,
+      "cosPhi": 0.9,
+      "phase": "1P",
+      "voltageV": 230,
+      "scenarios": [
+        "summer",
+        "normal"
+      ],
+      "thermalDensityUnit": "Wm2",
+      "cop": 3.5
+    },
+    {
+      "id": "device-led-warehouse",
+      "name": "Oświetlenie LED magazynu",
+      "categoryId": "lighting",
+      "zoneId": "warehouse",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 24,
+      "powerDensityWm2": 8,
+      "simultaneityFactor": 0.85,
+      "utilizationFactor": 0.75,
+      "cosPhi": 0.95,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter",
+        "summer",
+        "backup"
+      ]
+    },
+    {
+      "id": "device-4b67c853-8183-47ec-b71d-51bba33e992e",
+      "name": "Oświetlenie LED biura",
+      "categoryId": "lighting",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 1,
+      "powerDensityWm2": 7,
+      "thermalDensityUnit": "Wm3",
+      "simultaneityFactor": 0.85,
+      "utilizationFactor": 0.75,
+      "cosPhi": 0.9,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "summer",
+        "winter",
+        "backup"
+      ]
+    },
+    {
+      "id": "device-server-room",
+      "name": "Serwerownia i UPS",
+      "categoryId": "serverRoom",
+      "zoneId": "server-room",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 1.5,
+      "simultaneityFactor": 1,
+      "utilizationFactor": 1,
+      "cosPhi": 0.95,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter",
+        "summer",
+        "backup"
+      ],
+      "powerDensityWm2": 0
+    },
+    {
+      "id": "device-dock-equipment",
+      "name": "Bramy i urządzenia dokowe",
+      "categoryId": "technology",
+      "zoneId": "warehouse",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 8,
+      "unitPowerKw": 1.5,
+      "simultaneityFactor": 0.45,
+      "utilizationFactor": 0.7,
+      "cosPhi": 0.85,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter",
+        "summer"
+      ],
+      "powerDensityWm2": 0
+    },
+    {
+      "id": "device-office-computers",
+      "name": "Komputery stanowiskowe",
+      "categoryId": "sockets",
+      "zoneId": "office",
+      "powerInputMode": "manual",
+      "quantityInputMode": "computers",
+      "quantity": 32,
+      "unitPowerKw": 0.18,
+      "simultaneityFactor": 0.8,
+      "utilizationFactor": 0.7,
+      "cosPhi": 0.95,
+      "phase": "1P",
+      "voltageV": 230,
+      "scenarios": [
+        "normal",
+        "summer",
+        "backup"
+      ],
+      "notes": "Ilość pobierana z parametru liczby komputerów w projekcie.",
+      "powerDensityWm2": 0
+    },
+    {
+      "id": "device-workstations-sockets",
+      "name": "Gniazda stanowisk pracy",
+      "categoryId": "sockets",
+      "zoneId": "office",
+      "powerInputMode": "manual",
+      "quantityInputMode": "people",
+      "quantity": 35,
+      "unitPowerKw": 0.12,
+      "simultaneityFactor": 0.55,
+      "utilizationFactor": 0.65,
+      "cosPhi": 0.95,
+      "phase": "1P",
+      "voltageV": 230,
+      "scenarios": [
+        "normal",
+        "summer",
+        "backup",
+        "winter"
+      ],
+      "notes": "Ilość pobierana z parametru liczby osób pracujących.",
+      "powerDensityWm2": 0
+    },
+    {
+      "id": "device-0a228ca3-28a4-4674-b17e-3906ca5d641d",
+      "name": "CWU",
+      "categoryId": "cwu",
+      "zoneId": "warehouse",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 5,
+      "powerDensityWm2": 10,
+      "thermalDensityUnit": "Wm2",
+      "cop": 3.5,
+      "simultaneityFactor": 0.7,
+      "utilizationFactor": 0.65,
+      "cosPhi": 0.9,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "summer",
+        "winter"
+      ]
+    },
+    {
+      "id": "device-69bac02c-faf2-4a31-b514-b62abf79e06a",
+      "name": "Kuchnia - czajniki, płyta, zmywarka, mikrofala",
+      "categoryId": "kitchen",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 15,
+      "powerDensityWm2": 35,
+      "thermalDensityUnit": "Wm3",
+      "simultaneityFactor": 0.6,
+      "utilizationFactor": 0.6,
+      "cosPhi": 0.9,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "summer",
+        "winter"
+      ]
+    },
+    {
+      "id": "device-8ed218f9-174f-48ea-88af-dfb0bbf563af",
+      "name": "Oswietalenia zewnętrzne budynku",
+      "categoryId": "lighting",
+      "zoneId": "warehouse",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 1,
+      "powerDensityWm2": 8,
+      "thermalDensityUnit": "Wm3",
+      "simultaneityFactor": 0.85,
+      "utilizationFactor": 0.75,
+      "cosPhi": 0.9,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "summer",
+        "winter",
+        "backup"
+      ]
+    },
+    {
+      "id": "device-fbc22470-d1a7-4eba-aa9e-ee21873859d1",
+      "name": "CCITV, Alarm,  kontrola dostępu",
+      "categoryId": "serverRoom",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 1,
+      "powerDensityWm2": 40,
+      "thermalDensityUnit": "Wm3",
+      "simultaneityFactor": 0.8,
+      "utilizationFactor": 0.85,
+      "cosPhi": 0.9,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal"
+      ]
+    }
+  ]
+}

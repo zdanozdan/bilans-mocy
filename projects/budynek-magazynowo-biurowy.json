@@ -1,0 +1,279 @@
+{
+  "project": {
+    "name": "Budynek magazynowo-biurowy",
+    "buildingType": "Magazyn z częścią biurową",
+    "warehouseAreaM2": 3000,
+    "warehouseHeightM": 8,
+    "officeAreaM2": 450,
+    "peopleCount": 35,
+    "computerCount": 32,
+    "minWarehouseTempC": 8,
+    "maxWarehouseTempC": 28,
+    "minOfficeTempC": 20,
+    "maxOfficeTempC": 26,
+    "reservePercent": 15,
+    "useAlternativeHeatingCooling": true,
+    "zones": [
+      {
+        "id": "warehouse",
+        "name": "Magazyn",
+        "type": "warehouse",
+        "areaM2": 3000,
+        "heightM": 8,
+        "minTempC": 8,
+        "maxTempC": 28
+      },
+      {
+        "id": "office",
+        "name": "Biuro",
+        "type": "office",
+        "areaM2": 450,
+        "heightM": 3,
+        "minTempC": 20,
+        "maxTempC": 26
+      },
+      {
+        "id": "server-room",
+        "name": "Serwerownia",
+        "type": "serverRoom",
+        "areaM2": 20,
+        "minTempC": 18,
+        "maxTempC": 24
+      },
+      {
+        "id": "technical",
+        "name": "Pomieszczenia techniczne",
+        "type": "technical",
+        "areaM2": 60,
+        "minTempC": 10,
+        "maxTempC": 30
+      }
+    ],
+    "energyStorage": {
+      "enabled": true,
+      "capacityKwh": 120,
+      "chargePowerKw": 50,
+      "dischargePowerKw": 50,
+      "mode": "peakShaving",
+      "roundTripEfficiencyPercent": 92
+    },
+    "exportFileName": "budynek-magazynowo-biurowy.json"
+  },
+  "devices": [
+    {
+      "id": "device-heat-pump-warehouse",
+      "name": "Pompa ciepła magazynu",
+      "categoryId": "heatPumps",
+      "zoneId": "warehouse",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 56,
+      "powerDensityWm2": 2.25,
+      "thermalDensityUnit": "Wm3",
+      "cop": 3.5,
+      "simultaneityFactor": 0.9,
+      "utilizationFactor": 0.85,
+      "cosPhi": 0.92,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "winter",
+        "normal"
+      ],
+      "notes": "Moc cieplna: kubatura magazynu × W/m³, moc elektryczna = ciepło / COP."
+    },
+    {
+      "id": "device-heat-pump-office",
+      "name": "Pompa ciepła biura",
+      "categoryId": "heatPumps",
+      "zoneId": "office",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 18,
+      "powerDensityWm2": 40,
+      "thermalDensityUnit": "Wm2",
+      "cop": 3.5,
+      "simultaneityFactor": 0.9,
+      "utilizationFactor": 0.85,
+      "cosPhi": 0.92,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "winter",
+        "normal"
+      ],
+      "notes": "Moc cieplna z W/m2, moc elektryczna = ciepło / COP."
+    },
+    {
+      "id": "device-office-ac",
+      "name": "Klimatyzacja biur",
+      "categoryId": "cooling",
+      "zoneId": "office",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 21,
+      "powerDensityWm2": 45,
+      "cop": 3.5,
+      "simultaneityFactor": 0.8,
+      "utilizationFactor": 0.8,
+      "cosPhi": 0.9,
+      "phase": "1P",
+      "voltageV": 230,
+      "scenarios": [
+        "summer",
+        "normal"
+      ],
+      "notes": "Moc chłodnicza z W/m2, moc elektryczna = chłód / COP."
+    },
+    {
+      "id": "device-office-cwu",
+      "name": "CWU — ciepła woda biura",
+      "categoryId": "cwu",
+      "zoneId": "office",
+      "powerInputMode": "area",
+      "quantityInputMode": "people",
+      "quantity": 1,
+      "unitPowerKw": 5,
+      "powerDensityWm2": 350,
+      "cop": 3.5,
+      "simultaneityFactor": 0.7,
+      "utilizationFactor": 0.65,
+      "cosPhi": 0.92,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter"
+      ],
+      "notes": "Moc cieplna: liczba osób × W/os., moc elektryczna = ciepło / COP."
+    },
+    {
+      "id": "device-ahu",
+      "name": "Centrale wentylacyjne",
+      "categoryId": "ventilation",
+      "zoneId": "technical",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 2,
+      "unitPowerKw": 12,
+      "simultaneityFactor": 0.95,
+      "utilizationFactor": 0.9,
+      "cosPhi": 0.88,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter",
+        "summer",
+        "backup"
+      ]
+    },
+    {
+      "id": "device-led-warehouse",
+      "name": "Oświetlenie LED magazynu",
+      "categoryId": "lighting",
+      "zoneId": "warehouse",
+      "powerInputMode": "area",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 24,
+      "powerDensityWm2": 8,
+      "simultaneityFactor": 0.85,
+      "utilizationFactor": 0.75,
+      "cosPhi": 0.95,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter",
+        "summer",
+        "backup"
+      ]
+    },
+    {
+      "id": "device-server-room",
+      "name": "Serwerownia i UPS",
+      "categoryId": "serverRoom",
+      "zoneId": "server-room",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 1,
+      "unitPowerKw": 18,
+      "simultaneityFactor": 1,
+      "utilizationFactor": 0.9,
+      "cosPhi": 0.95,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter",
+        "summer",
+        "backup"
+      ]
+    },
+    {
+      "id": "device-dock-equipment",
+      "name": "Bramy i urządzenia dokowe",
+      "categoryId": "technology",
+      "zoneId": "warehouse",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 8,
+      "unitPowerKw": 1.5,
+      "simultaneityFactor": 0.45,
+      "utilizationFactor": 0.7,
+      "cosPhi": 0.85,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal",
+        "winter",
+        "summer"
+      ]
+    },
+    {
+      "id": "device-office-computers",
+      "name": "Komputery stanowiskowe",
+      "categoryId": "sockets",
+      "zoneId": "office",
+      "powerInputMode": "manual",
+      "quantityInputMode": "computers",
+      "quantity": 32,
+      "unitPowerKw": 0.18,
+      "simultaneityFactor": 0.8,
+      "utilizationFactor": 0.7,
+      "cosPhi": 0.95,
+      "phase": "1P",
+      "voltageV": 230,
+      "scenarios": [
+        "normal",
+        "summer",
+        "backup"
+      ],
+      "notes": "Ilość pobierana z parametru liczby komputerów w projekcie."
+    },
+    {
+      "id": "device-workstations-sockets",
+      "name": "Gniazda stanowisk pracy",
+      "categoryId": "sockets",
+      "zoneId": "office",
+      "powerInputMode": "manual",
+      "quantityInputMode": "people",
+      "quantity": 35,
+      "unitPowerKw": 0.12,
+      "simultaneityFactor": 0.55,
+      "utilizationFactor": 0.65,
+      "cosPhi": 0.95,
+      "phase": "1P",
+      "voltageV": 230,
+      "scenarios": [
+        "normal",
+        "summer"
+      ],
+      "notes": "Ilość pobierana z parametru liczby osób pracujących."
+    }
+  ]
+}

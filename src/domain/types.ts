@@ -3,7 +3,9 @@ export type ScenarioId = 'normal' | 'winter' | 'summer' | 'backup'
 export type DeviceCategoryId =
   | 'heatPumps'
   | 'cooling'
+  | 'cwu'
   | 'ventilation'
+  | 'kitchen'
   | 'lighting'
   | 'sockets'
   | 'serverRoom'
@@ -17,6 +19,8 @@ export type ElectricalPhase = '1P' | '3P' | 'DC'
 export type EnergyStorageMode = 'neutral' | 'charging' | 'discharging' | 'peakShaving'
 
 export type PowerInputMode = 'manual' | 'area'
+
+export type ThermalDensityUnit = 'Wm2' | 'Wm3'
 
 export type QuantityInputMode = 'manual' | 'people' | 'computers'
 
@@ -38,6 +42,8 @@ export interface Zone {
   name: string
   type: 'warehouse' | 'office' | 'serverRoom' | 'technical' | 'common' | 'custom'
   areaM2: number
+  /** Wysokość strefy [m] — do kubatury przy liczeniu ciepła w W/m³. */
+  heightM?: number
   minTempC?: number
   maxTempC?: number
 }
@@ -65,6 +71,8 @@ export interface ProjectConfig {
   maxOfficeTempC: number
   reservePercent: number
   useAlternativeHeatingCooling: boolean
+  /** Nazwa pliku JSON do zapisu (np. wysogotowo-mikran.json). */
+  exportFileName?: string
   zones: Zone[]
   energyStorage: EnergyStorageConfig
 }
@@ -79,6 +87,10 @@ export interface Device {
   quantity: number
   unitPowerKw: number
   powerDensityWm2?: number
+  /** Dla pomp ciepła: W/m² = od powierzchni, W/m³ = od kubatury. */
+  thermalDensityUnit?: ThermalDensityUnit
+  /** Pompa ciepła, klimatyzacja, CWU: moc termiczna / COP → moc elektryczna. */
+  cop?: number
   simultaneityFactor: number
   utilizationFactor: number
   cosPhi: number
@@ -91,9 +103,14 @@ export interface Device {
 export interface DeviceCalculation {
   device: Device
   resolvedQuantity: number
+  /** Moc elektryczna zainstalowana (do bilansu). */
   installedPowerKw: number
+  /** Moc elektryczna obliczeniowa (do bilansu). */
   calculatedPowerKw: number
   apparentPowerKva: number
+  /** Moc cieplna lub chłodnicza — pompy ciepła, klimatyzacja, CWU (z powierzchni / osób). */
+  installedThermalPowerKw?: number
+  calculatedThermalPowerKw?: number
 }
 
 export interface ProjectMetrics {

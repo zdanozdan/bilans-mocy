@@ -5,7 +5,12 @@ import {
   calculateProjectMetrics,
   calculateProjectBalance,
 } from './calculations'
-import { defaultDevices, defaultProject, scenarios } from './defaults'
+import {
+  defaultDevices,
+  defaultProject,
+  getDefaultHeatPumpThermalDensity,
+  scenarios,
+} from './defaults'
 import type { Device } from './types'
 
 const baseDevice: Device = {
@@ -32,6 +37,111 @@ describe('calculateDevice', () => {
     expect(result.installedPowerKw).toBe(40)
     expect(result.calculatedPowerKw).toBe(16)
     expect(result.apparentPowerKva).toBe(20)
+  })
+
+  it('uses warehouse volume for heat pump thermal demand', () => {
+    const result = calculateDevice(
+      {
+        ...baseDevice,
+        categoryId: 'heatPumps',
+        zoneId: 'warehouse',
+        powerInputMode: 'area',
+        quantity: 1,
+        powerDensityWm2: 2.25,
+        thermalDensityUnit: 'Wm3',
+        cop: 1,
+        simultaneityFactor: 1,
+        utilizationFactor: 1,
+      },
+      defaultProject,
+    )
+
+    expect(result.installedThermalPowerKw).toBe(54)
+    expect(result.installedPowerKw).toBe(54)
+  })
+
+  it('recalculates warehouse heat demand when height changes', () => {
+    const device = {
+      ...baseDevice,
+      categoryId: 'heatPumps' as const,
+      zoneId: 'warehouse',
+      powerInputMode: 'area' as const,
+      quantity: 1,
+      powerDensityWm2: 2.25,
+      cop: 1,
+      simultaneityFactor: 1,
+      utilizationFactor: 1,
+    }
+    const tallerWarehouse = { ...defaultProject, warehouseHeightM: 10 }
+    const result = calculateDevice(device, tallerWarehouse)
+
+    expect(result.installedThermalPowerKw).toBe(67.5)
+  })
+
+  it('converts CWU thermal power per person to electrical using COP', () => {
+    const result = calculateDevice(
+      {
+        ...baseDevice,
+        categoryId: 'cwu',
+        zoneId: 'office',
+        powerInputMode: 'area',
+        quantityInputMode: 'people',
+        quantity: 1,
+        powerDensityWm2: 400,
+        cop: 2.5,
+        simultaneityFactor: 1,
+        utilizationFactor: 1,
+      },
+      defaultProject,
+    )
+
+    expect(result.installedThermalPowerKw).toBe(14)
+    expect(result.installedPowerKw).toBe(5.6)
+    expect(result.calculatedPowerKw).toBe(5.6)
+  })
+
+  it('converts cooling thermal area power to electrical using COP', () => {
+    const result = calculateDevice(
+      {
+        ...baseDevice,
+        categoryId: 'cooling',
+        zoneId: 'office',
+        powerInputMode: 'area',
+        quantity: 1,
+        powerDensityWm2: 45,
+        cop: 3,
+        simultaneityFactor: 1,
+        utilizationFactor: 1,
+      },
+      defaultProject,
+    )
+
+    expect(result.installedThermalPowerKw).toBe(20.25)
+    expect(result.installedPowerKw).toBe(6.75)
+    expect(result.calculatedPowerKw).toBe(6.75)
+  })
+
+  it('converts heat pump thermal area power to electrical using COP', () => {
+    const result = calculateDevice(
+      {
+        ...baseDevice,
+        categoryId: 'heatPumps',
+        zoneId: 'office',
+        powerInputMode: 'area',
+        quantity: 1,
+        powerDensityWm2: 40,
+        thermalDensityUnit: 'Wm2',
+        cop: 4,
+        simultaneityFactor: 1,
+        utilizationFactor: 1,
+      },
+      defaultProject,
+    )
+
+    expect(result.installedThermalPowerKw).toBe(18)
+    expect(result.installedPowerKw).toBe(4.5)
+    expect(result.calculatedThermalPowerKw).toBe(18)
+    expect(result.calculatedPowerKw).toBe(4.5)
   })
 
   it('calculates installed power from zone area and power density', () => {
@@ -239,6 +349,18 @@ describe('calculateProjectBalance', () => {
 
     expect(result.scenarios).toHaveLength(4)
     expect(result.scenarios.every((scenario) => scenario.netPowerKw >= 0)).toBe(true)
+  })
+})
+
+describe('getDefaultHeatPumpThermalDensity', () => {
+  it('uses 40 W/m2 for office heat pumps', () => {
+    expect(getDefaultHeatPumpThermalDensity('office', 'Wm2')).toBe(40)
+  })
+
+  it('uses separate defaults for heat pump W/m2 and W/m3', () => {
+    expect(getDefaultHeatPumpThermalDensity('warehouse', 'Wm3')).toBe(2.25)
+    expect(getDefaultHeatPumpThermalDensity('warehouse', 'Wm2')).toBe(18)
+    expect(getDefaultHeatPumpThermalDensity('office', 'Wm2')).toBe(40)
   })
 })
 

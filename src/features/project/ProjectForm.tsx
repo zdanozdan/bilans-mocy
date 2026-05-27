@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { ProjectConfig, Zone } from '../../domain/types'
 
 interface ProjectFormProps {
@@ -33,6 +34,8 @@ const createZone = (): Zone => ({
 })
 
 export function ProjectForm({ project, onChange }: ProjectFormProps) {
+  const [lastAddedZoneId, setLastAddedZoneId] = useState<string | null>(null)
+
   const updateProject = <K extends keyof ProjectConfig>(key: K, value: ProjectConfig[K]) => {
     onChange({ ...project, [key]: value })
   }
@@ -90,6 +93,26 @@ export function ProjectForm({ project, onChange }: ProjectFormProps) {
     )
   }
 
+  const addZone = () => {
+    const newZone = createZone()
+    setLastAddedZoneId(newZone.id)
+    updateProject('zones', [newZone, ...project.zones])
+  }
+
+  useEffect(() => {
+    if (!lastAddedZoneId) {
+      return
+    }
+
+    const element = document.querySelector(`[data-zone-id="${lastAddedZoneId}"]`)
+    if (element instanceof HTMLElement) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+
+    const timeout = window.setTimeout(() => setLastAddedZoneId(null), 2500)
+    return () => window.clearTimeout(timeout)
+  }, [lastAddedZoneId])
+
   return (
     <section className="panel" aria-labelledby="project-heading">
       <div className="section-heading">
@@ -133,7 +156,16 @@ export function ProjectForm({ project, onChange }: ProjectFormProps) {
             step="0.1"
             type="number"
             value={project.warehouseHeightM}
-            onChange={(event) => updateProject('warehouseHeightM', event.target.valueAsNumber)}
+            onChange={(event) => {
+              const warehouseHeightM = event.target.valueAsNumber
+              onChange({
+                ...project,
+                warehouseHeightM,
+                zones: project.zones.map((zone) =>
+                  zone.type === 'warehouse' ? { ...zone, heightM: warehouseHeightM } : zone,
+                ),
+              })
+            }}
           />
         </label>
         <div className="readonly-field">
@@ -229,7 +261,7 @@ export function ProjectForm({ project, onChange }: ProjectFormProps) {
           <button
             className="secondary"
             type="button"
-            onClick={() => updateProject('zones', [...project.zones, createZone()])}
+            onClick={addZone}
           >
             Dodaj strefę
           </button>
@@ -241,6 +273,8 @@ export function ProjectForm({ project, onChange }: ProjectFormProps) {
                 <th>Nazwa</th>
                 <th>Typ</th>
                 <th>Pow. [m2]</th>
+                <th>Wys. [m]</th>
+                <th>Kub. [m3]</th>
                 <th>Temp. min [C]</th>
                 <th>Temp. max [C]</th>
                 <th></th>
@@ -248,7 +282,11 @@ export function ProjectForm({ project, onChange }: ProjectFormProps) {
             </thead>
             <tbody>
               {project.zones.map((zone) => (
-                <tr key={zone.id}>
+                <tr
+                  className={zone.id === lastAddedZoneId ? 'is-new-row' : ''}
+                  data-zone-id={zone.id}
+                  key={zone.id}
+                >
                   <td>
                     <input
                       value={zone.name}
@@ -276,6 +314,22 @@ export function ProjectForm({ project, onChange }: ProjectFormProps) {
                       value={zone.areaM2}
                       onChange={(event) => updateZone(zone.id, { areaM2: event.target.valueAsNumber })}
                     />
+                  </td>
+                  <td>
+                    <input
+                      min="0"
+                      step="0.1"
+                      type="number"
+                      value={zone.heightM ?? ''}
+                      onChange={(event) =>
+                        updateZone(zone.id, { heightM: event.target.valueAsNumber })
+                      }
+                    />
+                  </td>
+                  <td className="numeric">
+                    {zone.type === 'warehouse'
+                      ? (project.warehouseAreaM2 * project.warehouseHeightM).toFixed(0)
+                      : (zone.areaM2 * Math.max(zone.heightM ?? 0, 0)).toFixed(0)}
                   </td>
                   <td>
                     <input
