@@ -17,6 +17,7 @@ import {
   buildHvacScenarioSummaryLine,
   getHvacPoblCellSuffix,
   isHvacRowExcludedFromScenarioSum,
+  type DeviceScenarioInclusionState,
 } from '../../domain/hvacDisplay'
 import { buildHeatDemandRows } from '../../domain/heatDemandDisplay'
 import {
@@ -26,7 +27,9 @@ import {
   buildLlmReviewPrompt,
   buildProjectAssumptionRows,
   buildScenarioDescriptionRows,
+  getBindingScenario,
 } from '../../domain/projectAssumptionsDisplay'
+import { ENEA_INDUCTIVE_TAN_PHI_LIMIT } from '../../domain/reactivePower'
 import { scenarios as defaultScenarios } from '../../domain/defaults'
 import { getZoneDisplayName } from '../../domain/zones'
 
@@ -76,7 +79,22 @@ const GLOSSARY_ITEMS: Array<{ term: string; description: string }> = [
   {
     term: 'S — moc pozorna [kVA]',
     description:
-      'Moc widziana przez sieć przy danym cos φ (współczynnik mocy): S = P / cos φ. Operator przyłącza interesuje też obciążenie transformatora i przewodów w kVA, nie tylko moc czynna w kW.',
+      'Moc widziana przez sieć: S = √(P² + (Q_ind − Q_poj)²), gdzie P to Pobl scenariusza. Nie sumuje się S z odbiorników liniowo — w raporcie S wynika ze składowych wektorowych.',
+  },
+  {
+    term: 'Q_ind — moc bierna indukcyjna [kvar]',
+    description:
+      'Składowa „opóźniająca” (silniki, transformator, grzałki, pompy). Dla każdego odbiornika: Q = P·tg φ przy zadanym cos φ. Enea Operator ogranicza pobór indukcyjny warunkiem tg φ ≤ 0,40 (tan φ ≤ 0,40), tj. Q_ind/P ≤ 0,40.',
+  },
+  {
+    term: 'Q_poj — moc bierna pojemnościowa [kvar]',
+    description:
+      'Składowa „wyprzedzająca” (zasilacze impulsowe, LED, UPS, kondensatory w osprzęcie). W bilansie przyjęto ją dla oświetlenia LED, gniazd/komputerów i serwerowni — OSD może naliczać opłaty za Q_poj od pierwszej kvarh.',
+  },
+  {
+    term: 'tan φ (wypadkowy) i tan φ_ind',
+    description:
+      'tan φ = (Q_ind − Q_poj) / P — kierunek netto mocy biernej w scenariuszu. tan φ_ind = Q_ind / P — do porównania z limitem 0,40 dla mocy biernej indukcyjnej pobieranej z sieci (Enea).',
   },
   {
     term: 'Rezerwa [%]',
@@ -97,6 +115,8 @@ const GLOSSARY_ITEMS: Array<{ term: string; description: string }> = [
 
 const formatPower = (value: number) => `${value.toFixed(2)} kW`
 const formatKva = (value: number) => `${value.toFixed(2)} kVA`
+const formatKvar = (value: number) => `${value.toFixed(2)} kvar`
+const formatRatio = (value: number) => value.toFixed(3)
 const formatPowerDelta = (deltaKw: number) => {
   if (Math.abs(deltaKw) < 0.005) {
     return '0,00 kW'
@@ -115,7 +135,24 @@ const buildScenarioSummaryRows = (
   const rows: Array<[string, string]> = [
     ['Pinst — moc zainstalowana', formatPower(scenarioBalance.installedPowerKw)],
     ['Pobl — moc obliczeniowa (do bilansu)', formatPower(scenarioBalance.calculatedPowerKw)],
+    ['Q_ind — moc bierna indukcyjna', formatKvar(scenarioBalance.reactivePowerInductiveKvar)],
+    ['Q_poj — moc bierna pojemnościowa', formatKvar(scenarioBalance.reactivePowerCapacitiveKvar)],
+    [
+      'Q_net = Q_ind − Q_poj',
+      formatKvar(
+        scenarioBalance.reactivePowerInductiveKvar -
+          scenarioBalance.reactivePowerCapacitiveKvar,
+      ),
+    ],
     ['S — moc pozorna', formatKva(scenarioBalance.apparentPowerKva)],
+    ['cos φ (wypadkowy)', formatRatio(scenarioBalance.powerFactorCos)],
+    ['tan φ (wypadkowy)', formatRatio(scenarioBalance.powerFactorTan)],
+    [
+      `tan φ_ind = Q_ind/P (limit Enea ≤ ${ENEA_INDUCTIVE_TAN_PHI_LIMIT.toFixed(2)})`,
+      `${formatRatio(scenarioBalance.inductiveTanPhi)} — ${
+        scenarioBalance.meetsEneaInductiveTanPhiLimit ? 'spełniony' : 'przekroczony'
+      }`,
+    ],
     [
       `Rezerwa projektowa (${project.reservePercent}%)`,
       formatPower(scenarioBalance.reservePowerKw),
@@ -198,10 +235,10 @@ function PrintProjectAssumptionsSection({
   devices: Device[]
   project: ProjectConfig
 }) {
-  const assumptionRows = buildProjectAssumptionRows(project, balance)
+  const assumptionRows = buildProjectAssumptionRows(project, balance, devices)
   const scenarioRows = buildScenarioDescriptionRows(defaultScenarios)
   const coolingRows = buildCoolingDemandRows(project, devices)
-  const deviceMatrix = buildDeviceScenarioMatrix(devices, defaultScenarios)
+  const deviceMatrix = buildDeviceScenarioMatrix(devices, project, defaultScenarios)
   const noteRows = buildDeviceNotesRows(devices)
 
   return (
@@ -241,13 +278,16 @@ function PrintProjectAssumptionsSection({
           rows={deviceMatrix.rows}
         />
         <p className="print-scenario-matrix-legend">
-          <PrintScenarioInclusionMark active />
+          <PrintScenarioInclusionMark state="active" />
           {' '}
-          — odbiornik wliczony: jego Pinst i Pobl wchodzą do sum w tabelach tego scenariusza.{' '}
-          <PrintScenarioInclusionMark active={false} />
+          — zaznaczony w scenariuszu: Pinst i Pobl w tabelach tego wariantu.{' '}
+          <PrintScenarioInclusionMark state="hvacReference" />
           {' '}
-          — pominięty w tym wariancie (nie liczy się do mocy). Przypisanie ustawiasz w tabeli
-          urządzeń projektu (checkboxy przy scenariuszach).
+          — tylko w „Pracy normalnej”: w bilansie przez odniesienie do szczytu Zima/Lato (średnia
+          lub 65%), mimo braku checkboxa.{' '}
+          <PrintScenarioInclusionMark state="inactive" />
+          {' '}
+          — pominięty. Checkboxy ustawiasz w tabeli urządzeń projektu.
         </p>
       </div>
 
@@ -269,6 +309,7 @@ function PrintCopAssumptionsSection({
   project: ProjectConfig
 }) {
   const copDevices = devices.filter((device) => usesCopThermalConversion(device.categoryId))
+  const hasHeatPumps = devices.some((device) => device.categoryId === 'heatPumps')
 
   const copRows = copDevices.map((device) => {
     const category =
@@ -308,6 +349,92 @@ function PrintCopAssumptionsSection({
         {defaultHeatPumpCopMinus20C.toFixed(2)}, COP (normalny) ={' '}
         {defaultHeatPumpCopNormal.toFixed(2)}.
       </p>
+      {hasHeatPumps ? (
+        <p className="print-muted print-cop-soft-start">
+          <strong>Pompy ciepła (PC):</strong> przewidziano mechanizm <strong>soft start</strong>{' '}
+          (stopniowe narastanie mocy przy rozruchu kompresorów). Bilans nie koryguje Pobl o
+          prąd rozruchowy — zakłada pracę ustaloną; parametry soft start należy podać we wniosku
+          przyłączeniowym.
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function PrintReactivePowerSection({ balance }: { balance: ProjectBalance }) {
+  const { scenarios } = balance
+
+  if (scenarios.length === 0) {
+    return null
+  }
+
+  const binding = getBindingScenario(balance)
+
+  const categoryRows = binding.byCategory
+    .filter((row) => (row.inductiveKvar ?? 0) > 0 || (row.capacitiveKvar ?? 0) > 0)
+    .map((row) => [
+      row.label,
+      row.calculatedPowerKw.toFixed(2),
+      (row.inductiveKvar ?? 0).toFixed(2),
+      (row.capacitiveKvar ?? 0).toFixed(2),
+    ])
+
+  return (
+    <section className="print-reactive-power">
+      <h2>Bilans mocy biernej i współczynnik mocy</h2>
+      <p className="print-reactive-lead">
+        Szacunek z Pobl i cos φ odbiorników; podział Q_ind (silniki, HVAC) i Q_poj (LED, komputery,
+        UPS). Warunek Enea Operator dla pobieranej mocy biernej indukcyjnej:{' '}
+        <strong>tan φ_ind = Q_ind/P ≤ {ENEA_INDUCTIVE_TAN_PHI_LIMIT.toFixed(2)}</strong>. Przy
+        dużej Q_poj OSD może naliczać opłaty za energię bierną pojemnościową — rozważ kompensację.
+      </p>
+
+      <div className="print-block">
+        <h3 className="print-assumptions-h3">Porównanie scenariuszy</h3>
+        <PrintTable
+          className="print-table-reactive-overview"
+          compact
+          headers={[
+            'Scenariusz',
+            'Pobl',
+            'Q_ind',
+            'Q_poj',
+            'S',
+            'cos φ',
+            'tan φ',
+            'tan φ_ind',
+            'Enea',
+          ]}
+          rows={scenarios.map((item) => [
+            item.scenario.name,
+            item.calculatedPowerKw.toFixed(2),
+            item.reactivePowerInductiveKvar.toFixed(2),
+            item.reactivePowerCapacitiveKvar.toFixed(2),
+            item.apparentPowerKva.toFixed(2),
+            formatRatio(item.powerFactorCos),
+            formatRatio(item.powerFactorTan),
+            formatRatio(item.inductiveTanPhi),
+            item.meetsEneaInductiveTanPhiLimit ? 'OK' : '!',
+          ])}
+        />
+      </div>
+
+      {categoryRows.length > 0 ? (
+        <div className="print-block">
+          <h3 className="print-assumptions-h3">
+            Podział Q wg kategorii — scenariusz „{binding.scenario.name}”
+          </h3>
+          <PrintTable
+            compact
+            headers={['Kategoria', 'Pobl [kW]', 'Q_ind [kvar]', 'Q_poj [kvar]']}
+            rows={categoryRows}
+          />
+          <p className="print-muted">
+            W tabeli kategorii scenariusza powyżej wartości Pobl mogą różnić się od sumy wierszy
+            (HVAC alternatywnie); Q wg kategorii dotyczy odbiorników aktywnych w tym wariancie.
+          </p>
+        </div>
+      ) : null}
     </section>
   )
 }
@@ -343,18 +470,38 @@ function PrintScenariosOverviewTable({ scenarios }: { scenarios: ScenarioBalance
         ])}
       />
       <p className="print-muted print-overview-hint">
-        Wartości w kW (S w kVA). „Netto po mag.” uwzględnia korektę magazynu energii w danym
-        scenariuszu. Szczegóły HVAC i podziały — w sekcjach poniżej.
+        Wartości w kW (S w kVA). Szczegóły Q_ind, Q_poj i tan φ — w sekcji „Bilans mocy biernej”.
+        „Netto po mag.” uwzględnia korektę magazynu energii.
       </p>
     </div>
   )
 }
 
-function PrintScenarioInclusionMark({ active }: { active: boolean }) {
-  if (active) {
+function PrintScenarioInclusionMark({
+  state,
+  active,
+}: {
+  state?: DeviceScenarioInclusionState
+  active?: boolean
+}) {
+  const resolvedState: DeviceScenarioInclusionState =
+    state ?? (active ? 'active' : 'inactive')
+
+  if (resolvedState === 'active') {
     return (
       <span className="print-scenario-mark print-scenario-yes" title="Wliczony do bilansu">
         ✓
+      </span>
+    )
+  }
+
+  if (resolvedState === 'hvacReference') {
+    return (
+      <span
+        className="print-scenario-mark print-scenario-hvac-ref"
+        title="Wliczony do Pracy normalnej przez odniesienie sezonowe (Zima/Lato)"
+      >
+        ◆
       </span>
     )
   }
@@ -371,7 +518,7 @@ function PrintDeviceScenarioMatrixTable({
   rows,
 }: {
   headers: string[]
-  rows: Array<{ name: string; activeInScenarios: boolean[] }>
+  rows: Array<{ name: string; inclusionByScenario: DeviceScenarioInclusionState[] }>
 }) {
   const scenarioHeaderCount = Math.max(0, headers.length - 1)
 
@@ -399,9 +546,9 @@ function PrintDeviceScenarioMatrixTable({
         {rows.map((row) => (
           <tr key={row.name}>
             <td>{row.name}</td>
-            {row.activeInScenarios.map((active, index) => (
+            {row.inclusionByScenario.map((inclusion, index) => (
               <td className="print-scenario-matrix-cell" key={`${row.name}-${index}`}>
-                <PrintScenarioInclusionMark active={active} />
+                <PrintScenarioInclusionMark state={inclusion} />
               </td>
             ))}
           </tr>
@@ -716,6 +863,7 @@ export function PrintReport({
       <section className="print-scenarios-wrap">
         <h2 className="print-scenarios-title">Scenariusze</h2>
         <PrintScenariosOverviewTable scenarios={balance.scenarios} />
+        <PrintReactivePowerSection balance={balance} />
         {balance.scenarios.map((scenarioBalance, index) => (
           <PrintScenarioSection
             isFirst={index === 0}

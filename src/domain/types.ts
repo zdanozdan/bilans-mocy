@@ -108,6 +108,8 @@ export interface Device {
   simultaneityFactor: number
   utilizationFactor: number
   cosPhi: number
+  /** Charakter mocy biernej: indukcyjna (silniki, grzałki) lub pojemnościowa (LED, zasilacze, UPS). */
+  reactivePowerKind?: 'inductive' | 'capacitive'
   phase: ElectricalPhase
   voltageV: number
   scenarios: ScenarioId[]
@@ -122,6 +124,8 @@ export interface DeviceCalculation {
   /** Moc elektryczna obliczeniowa (do bilansu). */
   calculatedPowerKw: number
   apparentPowerKva: number
+  inductiveKvar: number
+  capacitiveKvar: number
   /** Moc cieplna lub chłodnicza — pompy ciepła, klimatyzacja, CWU (z powierzchni / osób). */
   installedThermalPowerKw?: number
   calculatedThermalPowerKw?: number
@@ -140,6 +144,8 @@ export interface GroupedBalanceRow {
   installedPowerKw: number
   calculatedPowerKw: number
   apparentPowerKva: number
+  inductiveKvar?: number
+  capacitiveKvar?: number
 }
 
 export type HvacAlternativeMode = 'seasonalPeak' | 'normalAverage' | 'normalDerated'
@@ -165,6 +171,12 @@ export interface ScenarioBalance {
   installedPowerKw: number
   calculatedPowerKw: number
   apparentPowerKva: number
+  reactivePowerInductiveKvar: number
+  reactivePowerCapacitiveKvar: number
+  powerFactorCos: number
+  powerFactorTan: number
+  inductiveTanPhi: number
+  meetsEneaInductiveTanPhiLimit: boolean
   reservePowerKw: number
   totalWithReserveKw: number
   energyStorageAdjustmentKw: number

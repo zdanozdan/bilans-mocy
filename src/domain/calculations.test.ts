@@ -334,6 +334,63 @@ describe('calculateProjectBalance', () => {
     expect(normalScenario?.hvacAlternative.excludedCalculatedPowerKw).toBe(25)
   })
 
+  it('applies normal HVAC from seasonal peaks when heat is winter-only and cooling is summer-only', () => {
+    const project = {
+      ...defaultProject,
+      reservePercent: 0,
+      useAlternativeHeatingCooling: true,
+      normalHvacDeratingFactor: 0.65,
+      energyStorage: { ...defaultProject.energyStorage, enabled: false },
+    }
+    const heatDevice: Device = {
+      ...baseDevice,
+      id: 'heat',
+      categoryId: 'heatPumps',
+      scenarios: ['winter'],
+      quantity: 1,
+      unitPowerKw: 40,
+      simultaneityFactor: 1,
+      utilizationFactor: 1,
+      cosPhi: 1,
+    }
+    const coolingDevice: Device = {
+      ...baseDevice,
+      id: 'cooling',
+      categoryId: 'cooling',
+      scenarios: ['summer'],
+      quantity: 1,
+      unitPowerKw: 20,
+      simultaneityFactor: 1,
+      utilizationFactor: 1,
+      cosPhi: 1,
+    }
+    const baseLoad: Device = {
+      ...baseDevice,
+      id: 'base',
+      categoryId: 'lighting',
+      scenarios: ['normal'],
+      quantity: 1,
+      unitPowerKw: 10,
+      simultaneityFactor: 1,
+      utilizationFactor: 1,
+      cosPhi: 1,
+    }
+
+    const result = calculateProjectBalance(
+      project,
+      [heatDevice, coolingDevice, baseLoad],
+      scenarios,
+    )
+    const normalScenario = result.scenarios.find((item) => item.scenario.id === 'normal')
+
+    expect(normalScenario?.calculatedPowerKw).toBe(40)
+    expect(normalScenario?.hvacAlternative.applied).toBe(true)
+    expect(normalScenario?.hvacAlternative.mode).toBe('normalAverage')
+    expect(normalScenario?.hvacAlternative.hvacContributionKw).toBe(30)
+    expect(normalScenario?.hvacAlternative.heatingCalculatedPowerKw).toBe(40)
+    expect(normalScenario?.hvacAlternative.coolingCalculatedPowerKw).toBe(20)
+  })
+
   it('uses full seasonal peak for winter when both HVAC categories are active', () => {
     const project = {
       ...defaultProject,

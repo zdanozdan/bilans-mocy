@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildHvacCategoryTableNote,
+  getDeviceScenarioInclusionState,
   isHvacRowExcludedFromScenarioSum,
 } from './hvacDisplay'
+import { defaultProject } from './defaults'
+import type { Device } from './types'
 import type { GroupedBalanceRow, HvacAlternativeBalance } from './types'
 
 const hvacApplied: HvacAlternativeBalance = {
@@ -46,5 +49,27 @@ describe('hvacDisplay', () => {
     expect(note).toContain('64.28')
     expect(note).toContain('klimatyzacja')
     expect(note).toContain('5.76')
+  })
+
+  it('marks winter-only heat pump as HVAC reference in normal scenario', () => {
+    const device: Device = {
+      id: 'heat',
+      name: 'PC',
+      categoryId: 'heatPumps',
+      zoneId: 'warehouse',
+      powerInputMode: 'manual',
+      quantityInputMode: 'manual',
+      quantity: 1,
+      unitPowerKw: 10,
+      simultaneityFactor: 1,
+      utilizationFactor: 1,
+      cosPhi: 1,
+      phase: '3P',
+      voltageV: 400,
+      scenarios: ['winter'],
+    }
+
+    expect(getDeviceScenarioInclusionState(device, 'normal', defaultProject)).toBe('hvacReference')
+    expect(getDeviceScenarioInclusionState(device, 'winter', defaultProject)).toBe('active')
   })
 })

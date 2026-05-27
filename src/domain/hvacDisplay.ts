@@ -1,6 +1,49 @@
-import type { GroupedBalanceRow, HvacAlternativeBalance } from './types'
+import type { Device, GroupedBalanceRow, HvacAlternativeBalance, ProjectConfig, ScenarioId } from './types'
 
 export type HvacCategoryId = 'heatPumps' | 'cooling'
+
+export const HVAC_SEASONAL_REFERENCE_SCENARIO: Record<HvacCategoryId, ScenarioId> = {
+  heatPumps: 'winter',
+  cooling: 'summer',
+}
+
+export type DeviceScenarioInclusionState = 'active' | 'inactive' | 'hvacReference'
+
+/** Czy odbiornik HVAC wchodzi do „Pracy normalnej” przez odniesienie sezonowe (Zima/Lato), mimo braku checkboxa. */
+export const contributesToNormalHvacViaSeasonalReference = (
+  device: Device,
+  project: ProjectConfig,
+): boolean => {
+  if (project.useAlternativeHeatingCooling === false) {
+    return false
+  }
+
+  if (device.categoryId !== 'heatPumps' && device.categoryId !== 'cooling') {
+    return false
+  }
+
+  if (device.scenarios.includes('normal')) {
+    return false
+  }
+
+  return device.scenarios.includes(HVAC_SEASONAL_REFERENCE_SCENARIO[device.categoryId])
+}
+
+export const getDeviceScenarioInclusionState = (
+  device: Device,
+  scenarioId: ScenarioId,
+  project: ProjectConfig,
+): DeviceScenarioInclusionState => {
+  if (device.scenarios.includes(scenarioId)) {
+    return 'active'
+  }
+
+  if (scenarioId === 'normal' && contributesToNormalHvacViaSeasonalReference(device, project)) {
+    return 'hvacReference'
+  }
+
+  return 'inactive'
+}
 
 export const isHvacCategoryId = (id: string): id is HvacCategoryId =>
   id === 'heatPumps' || id === 'cooling'
@@ -28,11 +71,11 @@ export const getHvacPoblCellSuffix = (
   }
 
   if (hvac.mode === 'normalAverage') {
-    return 'w bilansie: średnia HVAC (praca normalna)'
+    return 'w bilansie: średnia HVAC (odniesienie Zima+Lato)'
   }
 
   if (hvac.mode === 'normalDerated' && hvac.excludedCategoryId === categoryId) {
-    return 'w bilansie: część mocy (praca normalna)'
+    return 'w bilansie: część szczytu sezonowego'
   }
 
   if (isHvacRowExcludedFromScenarioSum(hvac, categoryId)) {
@@ -64,8 +107,8 @@ export const buildHvacCategoryTableNote = (
   if (hvac.mode === 'normalAverage') {
     return (
       `Suma Pobl w tabeli kategorii: ${tableSumKw.toFixed(2)} kW — moc obliczeniowa scenariusza: ${scenarioCalculatedPowerKw.toFixed(2)} kW. ` +
-      `W „Pracy normalnej” do bilansu wliczono średnią z ogrzewania (${hvac.heatingCalculatedPowerKw.toFixed(2)} kW) i klimatyzacji (${hvac.coolingCalculatedPowerKw.toFixed(2)} kW) = ${(hvac.hvacContributionKw ?? 0).toFixed(2)} kW, ` +
-      `a nie szczyt zimowy ani letni.`
+      `W „Pracy normalnej” do bilansu wliczono średnią ze szczytów sezonowych: ogrzewanie ${hvac.heatingCalculatedPowerKw.toFixed(2)} kW (Zima) i klimatyzacja ${hvac.coolingCalculatedPowerKw.toFixed(2)} kW (Lato) = ${(hvac.hvacContributionKw ?? 0).toFixed(2)} kW, ` +
+      `a nie pełne szczyty obu sezonów naraz.`
     )
   }
 
@@ -74,8 +117,8 @@ export const buildHvacCategoryTableNote = (
 
     return (
       `Suma Pobl w tabeli kategorii: ${tableSumKw.toFixed(2)} kW — moc obliczeniowa scenariusza: ${scenarioCalculatedPowerKw.toFixed(2)} kW. ` +
-      `W „Pracy normalnej” do bilansu wliczono ${(hvac.hvacContributionKw ?? 0).toFixed(2)} kW z kategorii ${label} (obniżony udział szczytu sezonowego), ` +
-      `pominięto ${hvac.excludedCalculatedPowerKw.toFixed(2)} kW.`
+      `W „Pracy normalnej” do bilansu wliczono ${(hvac.hvacContributionKw ?? 0).toFixed(2)} kW z kategorii ${label} (obniżony udział szczytu z wariantu sezonowego), ` +
+      `pominięto ${hvac.excludedCalculatedPowerKw.toFixed(2)} kW pełnego szczytu.`
     )
   }
 
@@ -95,7 +138,7 @@ export const buildHvacScenarioSummaryLine = (hvac: HvacAlternativeBalance): stri
 
   if (hvac.mode === 'normalAverage') {
     return (
-      `HVAC — praca normalna: średnia z ogrzewania (${hvac.heatingCalculatedPowerKw.toFixed(2)} kW) i klimatyzacji (${hvac.coolingCalculatedPowerKw.toFixed(2)} kW) = ${(hvac.hvacContributionKw ?? 0).toFixed(2)} kW w bilansie (nie szczyt zimowy).`
+      `HVAC — praca normalna: średnia ze szczytów Zima (${hvac.heatingCalculatedPowerKw.toFixed(2)} kW) i Lato (${hvac.coolingCalculatedPowerKw.toFixed(2)} kW) = ${(hvac.hvacContributionKw ?? 0).toFixed(2)} kW w bilansie.`
     )
   }
 
@@ -103,7 +146,7 @@ export const buildHvacScenarioSummaryLine = (hvac: HvacAlternativeBalance): stri
     const label = getHvacExcludedCategoryLabel(hvac.excludedCategoryId)
 
     return (
-      `HVAC — praca normalna: w bilansie ${(hvac.hvacContributionKw ?? 0).toFixed(2)} kW z kategorii ${label} (obniżony udział szczytu sezonowego), pominięto ${hvac.excludedCalculatedPowerKw.toFixed(2)} kW pełnego szczytu.`
+      `HVAC — praca normalna: w bilansie ${(hvac.hvacContributionKw ?? 0).toFixed(2)} kW z kategorii ${label} (obniżony udział szczytu sezonowego), pominięto ${hvac.excludedCalculatedPowerKw.toFixed(2)} kW.`
     )
   }
 

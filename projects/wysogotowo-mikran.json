@@ -387,7 +387,7 @@
       "id": "device-3c250252-730a-4e02-8061-d07fb13da0c0",
       "name": "Frezarka do metalu, Druk 3D metalu, serwis",
       "categoryId": "mills",
-      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+      "zoneId": "warehouse",
       "powerInputMode": "manual",
       "quantityInputMode": "manual",
       "quantity": 6,

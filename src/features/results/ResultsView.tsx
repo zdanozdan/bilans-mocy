@@ -285,6 +285,23 @@ export function ResultsView({ balance }: ResultsViewProps) {
                 <td>{formatKva(selectedScenario.apparentPowerKva)}</td>
               </tr>
               <tr>
+                <th>Q indukcyjna / pojemnościowa</th>
+                <td>
+                  {selectedScenario.reactivePowerInductiveKvar.toFixed(2)} /{' '}
+                  {selectedScenario.reactivePowerCapacitiveKvar.toFixed(2)} kvar
+                </td>
+              </tr>
+              <tr>
+                <th>cos φ / tan φ_ind</th>
+                <td>
+                  {selectedScenario.powerFactorCos.toFixed(3)} /{' '}
+                  {selectedScenario.inductiveTanPhi.toFixed(3)}
+                  {selectedScenario.meetsEneaInductiveTanPhiLimit
+                    ? ' (Enea OK)'
+                    : ' (tan φ_ind > 0,40)'}
+                </td>
+              </tr>
+              <tr>
                 <th>Powierzchnia łączna</th>
                 <td>{balance.metrics.totalAreaM2.toFixed(0)} m2</td>
               </tr>

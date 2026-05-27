@@ -822,8 +822,8 @@ tr.hvac-row-excluded .strong {
 
 .print-report {
   color: #111;
-  font-size: 8pt;
-  line-height: 1.3;
+  font-size: 9pt;
+  line-height: 1.35;
 }
 
 .print-report-header {
@@ -834,7 +834,7 @@ tr.hvac-row-excluded .strong {
 
 .print-eyebrow {
   margin: 0 0 2px;
-  font-size: 7pt;
+  font-size: 8pt;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -842,20 +842,20 @@ tr.hvac-row-excluded .strong {
 
 .print-report-header h1 {
   margin: 0;
-  font-size: 14pt;
+  font-size: 15pt;
   line-height: 1.15;
 }
 
 .print-header-sub {
   margin: 2px 0 0;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
   color: #444;
 }
 
 .print-muted {
   margin: 0;
   color: #444;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
 }
 
 .print-purpose {
@@ -868,13 +868,13 @@ tr.hvac-row-excluded .strong {
 
 .print-purpose h2 {
   margin: 0 0 4px;
-  font-size: 9pt;
+  font-size: 10pt;
   font-weight: 800;
 }
 
 .print-purpose p {
   margin: 0 0 4px;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
   line-height: 1.4;
   text-align: justify;
 }
@@ -892,13 +892,13 @@ tr.hvac-row-excluded .strong {
 
 .print-glossary h2 {
   margin: 0 0 4px;
-  font-size: 9pt;
+  font-size: 10pt;
   font-weight: 800;
 }
 
 .print-glossary-lead {
   margin: 0 0 5px;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
   line-height: 1.4;
 }
 
@@ -917,7 +917,7 @@ tr.hvac-row-excluded .strong {
 
 .print-glossary-item dt {
   margin: 0;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
   font-weight: 800;
   line-height: 1.3;
 }
@@ -925,7 +925,7 @@ tr.hvac-row-excluded .strong {
 .print-glossary-item dd {
   margin: 1px 0 0;
   padding: 0 0 0 10px;
-  font-size: 7pt;
+  font-size: 8pt;
   line-height: 1.35;
   text-align: justify;
 }
@@ -934,19 +934,19 @@ tr.hvac-row-excluded .strong {
   margin: 5px 0 0;
   padding-top: 4px;
   border-top: 1px solid #ddd;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
 }
 
 .print-hvac-note {
   margin: 3px 0 0;
-  font-size: 6.5pt;
+  font-size: 7.5pt;
   line-height: 1.35;
   text-align: justify;
 }
 
 .print-hvac-legend {
   margin: 1px 0 0;
-  font-size: 6pt;
+  font-size: 7pt;
 }
 
 .print-llm-prompt {
@@ -958,7 +958,7 @@ tr.hvac-row-excluded .strong {
 
 .print-llm-prompt h2 {
   margin: 0 0 3px;
-  font-size: 9pt;
+  font-size: 10pt;
   font-weight: 800;
 }
 
@@ -972,7 +972,7 @@ tr.hvac-row-excluded .strong {
   border: 1px solid #999;
   background: #fafafa;
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
-  font-size: 6.5pt;
+  font-size: 7.5pt;
   line-height: 1.35;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -987,7 +987,7 @@ tr.hvac-row-excluded .strong {
 .print-scenarios-title,
 .print-subheading {
   margin: 0 0 4px;
-  font-size: 9pt;
+  font-size: 10pt;
   font-weight: 800;
 }
 
@@ -997,7 +997,7 @@ tr.hvac-row-excluded .strong {
 
 .print-heat-hint {
   margin: 3px 0 0;
-  font-size: 6.5pt;
+  font-size: 7.5pt;
   line-height: 1.35;
 }
 
@@ -1018,7 +1018,7 @@ tr.hvac-row-excluded .strong {
 
 .print-scenarios-overview h3 {
   margin: 0 0 4px;
-  font-size: 9.5pt;
+  font-size: 10.5pt;
   font-weight: 800;
 }
 
@@ -1027,7 +1027,7 @@ tr.hvac-row-excluded .strong {
 }
 
 .print-table-scenarios-overview {
-  font-size: 6.5pt;
+  font-size: 7.5pt;
 }
 
 .print-scenario-summary {
@@ -1050,24 +1050,24 @@ tr.hvac-row-excluded .strong {
 
 .print-project-assumptions h2 {
   margin: 0 0 4px;
-  font-size: 9.5pt;
+  font-size: 10.5pt;
   font-weight: 800;
 }
 
 .print-assumptions-lead {
   margin: 0 0 6px;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
   line-height: 1.4;
 }
 
 .print-assumptions-h3 {
   margin: 0 0 3px;
-  font-size: 8pt;
+  font-size: 9pt;
   font-weight: 800;
 }
 
 .print-table-scenario-matrix {
-  font-size: 7pt;
+  font-size: 8pt;
 }
 
 .print-table-scenario-matrix col.print-scenario-matrix-col-name {
@@ -1121,9 +1121,15 @@ tr.hvac-row-excluded .strong {
   font-weight: 800;
 }
 
+.print-scenario-hvac-ref {
+  color: #0b57d0;
+  font-size: 0.85em;
+  font-weight: 800;
+}
+
 .print-scenario-matrix-legend {
   margin: 4px 0 0;
-  font-size: 6.5pt;
+  font-size: 7.5pt;
   line-height: 1.45;
   color: #333;
 }
@@ -1141,23 +1147,52 @@ tr.hvac-row-excluded .strong {
 
 .print-cop-assumptions h2 {
   margin: 0 0 4px;
-  font-size: 9pt;
+  font-size: 10pt;
   font-weight: 800;
 }
 
 .print-cop-lead {
   margin: 0 0 5px;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
   line-height: 1.4;
 }
 
 .print-cop-defaults {
   margin: 4px 0 0;
-  font-size: 6.5pt;
+  font-size: 7.5pt;
+}
+
+.print-cop-soft-start {
+  margin: 4px 0 0;
+  font-size: 7.5pt;
+  line-height: 1.4;
+}
+
+.print-reactive-power {
+  margin: 8px 0 10px;
+  padding: 6px 8px;
+  border: 1px solid #bbb;
+  break-inside: avoid-page;
+}
+
+.print-reactive-power h2 {
+  margin: 0 0 4px;
+  font-size: 10.5pt;
+  font-weight: 800;
+}
+
+.print-reactive-lead {
+  margin: 0 0 6px;
+  font-size: 8pt;
+  line-height: 1.4;
+}
+
+.print-table-reactive-overview {
+  font-size: 7pt;
 }
 
 .print-table-cop {
-  font-size: 7pt;
+  font-size: 8pt;
 }
 
 .print-scenario {
@@ -1179,7 +1214,7 @@ tr.hvac-row-excluded .strong {
 
 .print-scenario h3 {
   margin: 0 0 2px;
-  font-size: 9.5pt;
+  font-size: 10.5pt;
   font-weight: 800;
 }
 
@@ -1187,7 +1222,7 @@ tr.hvac-row-excluded .strong {
   margin: 0 0 6px;
   padding: 4px 6px;
   border-left: 2px solid #888;
-  font-size: 7pt;
+  font-size: 8pt;
   color: #333;
   line-height: 1.4;
   text-align: justify;
@@ -1211,7 +1246,7 @@ tr.hvac-row-excluded .strong {
 
 .print-block h4 {
   margin: 0 0 3px;
-  font-size: 8pt;
+  font-size: 9pt;
   font-weight: 800;
 }
 
@@ -1226,22 +1261,22 @@ tr.hvac-row-excluded .strong {
 .print-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 7.5pt;
+  font-size: 8.5pt;
   table-layout: fixed;
 }
 
 .print-table-compact {
-  font-size: 7pt;
+  font-size: 8pt;
 }
 
 .print-table-devices {
-  font-size: 6.5pt;
+  font-size: 7.5pt;
 }
 
 .print-table th,
 .print-table td {
   border: 1px solid #aaa;
-  padding: 2px 4px;
+  padding: 3px 5px;
   text-align: left;
   vertical-align: top;
   overflow-wrap: anywhere;
@@ -1251,12 +1286,12 @@ tr.hvac-row-excluded .strong {
 .print-table th {
   background: #ececec;
   font-weight: 700;
-  font-size: 6.5pt;
-  line-height: 1.2;
+  font-size: 7.5pt;
+  line-height: 1.25;
 }
 
 .print-table-compact th {
-  font-size: 6.5pt;
+  font-size: 7.5pt;
 }
 
 .print-table td.numeric {
@@ -1330,6 +1365,7 @@ tr.hvac-row-excluded .strong {
   .print-glossary,
   .print-cop-assumptions,
   .print-project-assumptions,
+  .print-reactive-power,
   .print-scenarios-overview,
   .print-scenario-summary,
   .print-llm-prompt {

@@ -19,6 +19,13 @@ import type {
   ThermalDensityUnit,
   Zone,
 } from './types'
+import { HVAC_SEASONAL_REFERENCE_SCENARIO, type HvacCategoryId } from './hvacDisplay'
+import {
+  calculateDeviceReactivePower,
+  calculatePowerFactorSummary,
+  meetsEneaInductiveTanPhiLimit,
+  sumReactivePowerTotals,
+} from './reactivePower'
 import { getZoneDisplayName, resolveDeviceZone, resolveDeviceZoneId } from './zones'
 
 export const usesCopThermalConversion = (categoryId: DeviceCategoryId) =>
@@ -134,7 +141,9 @@ export const calculateDevice = (
     const cop = resolveDeviceCopMinus20C(device)
     const installedPowerKw = installedThermalPowerKw / cop
     const calculatedPowerKw = calculatedThermalPowerKw / cop
-    const apparentPowerKva = calculatedPowerKw / Math.max(device.cosPhi, 0.01)
+    const reactive = calculateDeviceReactivePower(device, calculatedPowerKw)
+    const apparentPowerKva = calculatePowerFactorSummary(calculatedPowerKw, reactive)
+      .apparentPowerKva
 
     return {
       device,
@@ -144,6 +153,8 @@ export const calculateDevice = (
       installedPowerKw: round(installedPowerKw),
       calculatedPowerKw: round(calculatedPowerKw),
       apparentPowerKva: round(apparentPowerKva),
+      inductiveKvar: round(reactive.inductiveKvar),
+      capacitiveKvar: round(reactive.capacitiveKvar),
     }
   }
 
@@ -153,7 +164,8 @@ export const calculateDevice = (
       : resolvedQuantity * device.unitPowerKw
   const calculatedPowerKw =
     installedPowerKw * device.simultaneityFactor * device.utilizationFactor
-  const apparentPowerKva = calculatedPowerKw / Math.max(device.cosPhi, 0.01)
+  const reactive = calculateDeviceReactivePower(device, calculatedPowerKw)
+  const apparentPowerKva = calculatePowerFactorSummary(calculatedPowerKw, reactive).apparentPowerKva
 
   return {
     device,
@@ -161,24 +173,30 @@ export const calculateDevice = (
     installedPowerKw: round(installedPowerKw),
     calculatedPowerKw: round(calculatedPowerKw),
     apparentPowerKva: round(apparentPowerKva),
+    inductiveKvar: round(reactive.inductiveKvar),
+    capacitiveKvar: round(reactive.capacitiveKvar),
   }
 }
-
-const sumCalculations = (devices: DeviceCalculation[]) =>
-  devices.reduce(
-    (acc, item) => ({
-      installedPowerKw: acc.installedPowerKw + item.installedPowerKw,
-      calculatedPowerKw: acc.calculatedPowerKw + item.calculatedPowerKw,
-      apparentPowerKva: acc.apparentPowerKva + item.apparentPowerKva,
-    }),
-    { installedPowerKw: 0, calculatedPowerKw: 0, apparentPowerKva: 0 },
-  )
 
 interface CalculationTotals {
   installedPowerKw: number
   calculatedPowerKw: number
-  apparentPowerKva: number
+  inductiveKvar: number
+  capacitiveKvar: number
 }
+
+const sumCalculationTotals = (devices: DeviceCalculation[]): CalculationTotals => {
+  const reactive = sumReactivePowerTotals(devices)
+
+  return {
+    installedPowerKw: devices.reduce((sum, item) => sum + item.installedPowerKw, 0),
+    calculatedPowerKw: devices.reduce((sum, item) => sum + item.calculatedPowerKw, 0),
+    inductiveKvar: reactive.inductiveKvar,
+    capacitiveKvar: reactive.capacitiveKvar,
+  }
+}
+
+const sumCalculations = (devices: DeviceCalculation[]) => sumCalculationTotals(devices)
 
 const replaceHvacInTotals = (
   rawTotals: CalculationTotals,
@@ -196,17 +214,23 @@ const replaceHvacInTotals = (
     heatingTotals.calculatedPowerKw -
     coolingTotals.calculatedPowerKw +
     hvacTotals.calculatedPowerKw,
-  apparentPowerKva:
-    rawTotals.apparentPowerKva -
-    heatingTotals.apparentPowerKva -
-    coolingTotals.apparentPowerKva +
-    hvacTotals.apparentPowerKva,
+  inductiveKvar:
+    rawTotals.inductiveKvar -
+    heatingTotals.inductiveKvar -
+    coolingTotals.inductiveKvar +
+    hvacTotals.inductiveKvar,
+  capacitiveKvar:
+    rawTotals.capacitiveKvar -
+    heatingTotals.capacitiveKvar -
+    coolingTotals.capacitiveKvar +
+    hvacTotals.capacitiveKvar,
 })
 
 const scaleCalculationTotals = (totals: CalculationTotals, factor: number): CalculationTotals => ({
   installedPowerKw: totals.installedPowerKw * factor,
   calculatedPowerKw: totals.calculatedPowerKw * factor,
-  apparentPowerKva: totals.apparentPowerKva * factor,
+  inductiveKvar: totals.inductiveKvar * factor,
+  capacitiveKvar: totals.capacitiveKvar * factor,
 })
 
 const averageCalculationTotals = (
@@ -215,25 +239,70 @@ const averageCalculationTotals = (
 ): CalculationTotals => ({
   installedPowerKw: (a.installedPowerKw + b.installedPowerKw) / 2,
   calculatedPowerKw: (a.calculatedPowerKw + b.calculatedPowerKw) / 2,
-  apparentPowerKva: (a.apparentPowerKva + b.apparentPowerKva) / 2,
+  inductiveKvar: (a.inductiveKvar + b.inductiveKvar) / 2,
+  capacitiveKvar: (a.capacitiveKvar + b.capacitiveKvar) / 2,
 })
+
+const getHvacCategoryCalculations = (
+  project: ProjectConfig,
+  activeDevices: DeviceCalculation[],
+  allDevices: Device[],
+  scenarioId: ScenarioId,
+  categoryId: HvacCategoryId,
+  hvacAlternativeEnabled: boolean,
+): DeviceCalculation[] => {
+  const activeInScenario = activeDevices.filter((item) => item.device.categoryId === categoryId)
+
+  if (scenarioId !== 'normal' || !hvacAlternativeEnabled) {
+    return activeInScenario
+  }
+
+  const referenceScenarioId = HVAC_SEASONAL_REFERENCE_SCENARIO[categoryId]
+  const seasonalReference = allDevices
+    .filter(
+      (device) =>
+        device.categoryId === categoryId && device.scenarios.includes(referenceScenarioId),
+    )
+    .map((device) => calculateDevice(device, project))
+
+  return seasonalReference.length > 0 ? seasonalReference : activeInScenario
+}
 
 const calculateHvacAlternative = (
   project: ProjectConfig,
-  devices: DeviceCalculation[],
+  activeDevices: DeviceCalculation[],
   scenarioId: ScenarioId,
+  allDevices: Device[],
 ): {
   totals: CalculationTotals
   hvacAlternative: HvacAlternativeBalance
 } => {
-  const rawTotals = sumCalculations(devices)
+  const rawTotals = sumCalculations(activeDevices)
+  const activeHeatingTotals = sumCalculations(
+    activeDevices.filter((item) => item.device.categoryId === 'heatPumps'),
+  )
+  const activeCoolingTotals = sumCalculations(
+    activeDevices.filter((item) => item.device.categoryId === 'cooling'),
+  )
   const enabled = project.useAlternativeHeatingCooling !== false
-  const heatingTotals = sumCalculations(
-    devices.filter((item) => item.device.categoryId === 'heatPumps'),
+  const heatingDevices = getHvacCategoryCalculations(
+    project,
+    activeDevices,
+    allDevices,
+    scenarioId,
+    'heatPumps',
+    enabled,
   )
-  const coolingTotals = sumCalculations(
-    devices.filter((item) => item.device.categoryId === 'cooling'),
+  const coolingDevices = getHvacCategoryCalculations(
+    project,
+    activeDevices,
+    allDevices,
+    scenarioId,
+    'cooling',
+    enabled,
   )
+  const heatingTotals = sumCalculations(heatingDevices)
+  const coolingTotals = sumCalculations(coolingDevices)
   const heatingCalculatedPowerKw = round(heatingTotals.calculatedPowerKw)
   const coolingCalculatedPowerKw = round(coolingTotals.calculatedPowerKw)
   const hasHeating = heatingTotals.calculatedPowerKw > 0
@@ -267,7 +336,12 @@ const calculateHvacAlternative = (
       )
 
       return {
-        totals: replaceHvacInTotals(rawTotals, heatingTotals, coolingTotals, hvacTotals),
+        totals: replaceHvacInTotals(
+          rawTotals,
+          activeHeatingTotals,
+          activeCoolingTotals,
+          hvacTotals,
+        ),
         hvacAlternative: {
           ...baseHvac,
           applied: true,
@@ -289,16 +363,13 @@ const calculateHvacAlternative = (
       const excludedCalculatedPowerKw = round(
         seasonalTotals.calculatedPowerKw - hvacTotals.calculatedPowerKw,
       )
-      const emptyTotals: CalculationTotals = {
-        installedPowerKw: 0,
-        calculatedPowerKw: 0,
-        apparentPowerKva: 0,
-      }
-      const heating = hasHeating ? heatingTotals : emptyTotals
-      const cooling = hasCooling ? coolingTotals : emptyTotals
-
       return {
-        totals: replaceHvacInTotals(rawTotals, heating, cooling, hvacTotals),
+        totals: replaceHvacInTotals(
+          rawTotals,
+          activeHeatingTotals,
+          activeCoolingTotals,
+          hvacTotals,
+        ),
         hvacAlternative: {
           ...baseHvac,
           applied: true,
@@ -337,7 +408,12 @@ const calculateHvacAlternative = (
   const hvacTotals = excludedCategoryId === 'heatPumps' ? coolingTotals : heatingTotals
 
   return {
-    totals: replaceHvacInTotals(rawTotals, heatingTotals, coolingTotals, hvacTotals),
+    totals: replaceHvacInTotals(
+      rawTotals,
+      activeHeatingTotals,
+      activeCoolingTotals,
+      hvacTotals,
+    ),
     hvacAlternative: {
       ...baseHvac,
       applied: true,
@@ -364,13 +440,16 @@ const groupCalculations = (
   return [...rows.entries()]
     .map(([id, groupedDevices]) => {
       const totals = sumCalculations(groupedDevices)
+      const powerFactor = calculatePowerFactorSummary(totals.calculatedPowerKw, totals)
 
       return {
         id,
         label: getLabel(id),
         installedPowerKw: round(totals.installedPowerKw),
         calculatedPowerKw: round(totals.calculatedPowerKw),
-        apparentPowerKva: round(totals.apparentPowerKva),
+        apparentPowerKva: round(powerFactor.apparentPowerKva),
+        inductiveKvar: round(totals.inductiveKvar),
+        capacitiveKvar: round(totals.capacitiveKvar),
       }
     })
     .sort((a, b) => b.calculatedPowerKw - a.calculatedPowerKw)
@@ -417,11 +496,13 @@ export const calculateScenarioBalance = (
     project,
     activeDevices,
     scenario.id,
+    devices,
   )
   const reservePowerKw = totals.calculatedPowerKw * (project.reservePercent / 100)
   const totalWithReserveKw = totals.calculatedPowerKw + reservePowerKw
   const energyStorageAdjustmentKw = calculateEnergyStorageAdjustment(project, scenario.id)
   const netPowerKw = Math.max(0, totalWithReserveKw + energyStorageAdjustmentKw)
+  const powerFactor = calculatePowerFactorSummary(totals.calculatedPowerKw, totals)
 
   return {
     scenario,
@@ -438,7 +519,13 @@ export const calculateScenarioBalance = (
     ),
     installedPowerKw: round(totals.installedPowerKw),
     calculatedPowerKw: round(totals.calculatedPowerKw),
-    apparentPowerKva: round(totals.apparentPowerKva),
+    apparentPowerKva: round(powerFactor.apparentPowerKva),
+    reactivePowerInductiveKvar: round(totals.inductiveKvar),
+    reactivePowerCapacitiveKvar: round(totals.capacitiveKvar),
+    powerFactorCos: round(powerFactor.powerFactorCos, 3),
+    powerFactorTan: round(powerFactor.powerFactorTan, 3),
+    inductiveTanPhi: round(powerFactor.inductiveTanPhi, 3),
+    meetsEneaInductiveTanPhiLimit: meetsEneaInductiveTanPhiLimit(powerFactor.inductiveTanPhi),
     reservePowerKw: round(reservePowerKw),
     totalWithReserveKw: round(totalWithReserveKw),
     energyStorageAdjustmentKw,

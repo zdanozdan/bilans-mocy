@@ -81,7 +81,7 @@ export const scenarios: Scenario[] = [
     id: 'normal',
     name: 'Praca normalna',
     description:
-      'Typowa praca budynku: odbiorniki bazowe; HVAC w bilansie jako średnia sezonowa lub obniżony udział szczytu (nie pełne ogrzewanie zimowe).',
+      'Typowa praca budynku: odbiorniki bazowe; HVAC z odniesienia do szczytów Zima/Lato (średnia lub obniżony udział), także gdy pompy i klimatyzacja nie są zaznaczone w tym wariancie.',
   },
   {
     id: 'winter',
