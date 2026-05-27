@@ -807,6 +807,114 @@ td select {
   font-size: 7.5pt;
 }
 
+.print-purpose {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border: 1px solid #bbb;
+  background: #f7f7f7;
+  break-inside: avoid-page;
+}
+
+.print-purpose h2 {
+  margin: 0 0 4px;
+  font-size: 9pt;
+  font-weight: 800;
+}
+
+.print-purpose p {
+  margin: 0 0 4px;
+  font-size: 7.5pt;
+  line-height: 1.4;
+  text-align: justify;
+}
+
+.print-purpose p:last-child {
+  margin-bottom: 0;
+}
+
+.print-glossary {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  break-inside: avoid-page;
+}
+
+.print-glossary h2 {
+  margin: 0 0 4px;
+  font-size: 9pt;
+  font-weight: 800;
+}
+
+.print-glossary-lead {
+  margin: 0 0 5px;
+  font-size: 7.5pt;
+  line-height: 1.4;
+}
+
+.print-glossary-list {
+  margin: 0;
+}
+
+.print-glossary-item {
+  margin: 0 0 4px;
+  break-inside: avoid-page;
+}
+
+.print-glossary-item:last-of-type {
+  margin-bottom: 0;
+}
+
+.print-glossary-item dt {
+  margin: 0;
+  font-size: 7.5pt;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.print-glossary-item dd {
+  margin: 1px 0 0;
+  padding: 0 0 0 10px;
+  font-size: 7pt;
+  line-height: 1.35;
+  text-align: justify;
+}
+
+.print-glossary-formula {
+  margin: 5px 0 0;
+  padding-top: 4px;
+  border-top: 1px solid #ddd;
+  font-size: 7.5pt;
+}
+
+.print-llm-prompt {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ccc;
+  break-inside: avoid-page;
+}
+
+.print-llm-prompt h2 {
+  margin: 0 0 3px;
+  font-size: 9pt;
+  font-weight: 800;
+}
+
+.print-llm-hint {
+  margin: 0 0 4px;
+}
+
+.print-llm-prompt-text {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid #999;
+  background: #fafafa;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+  font-size: 6.5pt;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .print-intro {
   margin-bottom: 8px;
   break-inside: avoid-page;
@@ -994,6 +1102,12 @@ td select {
   }
 
   .print-split {
+    break-inside: avoid-page;
+  }
+
+  .print-purpose,
+  .print-glossary,
+  .print-llm-prompt {
     break-inside: avoid-page;
   }
 

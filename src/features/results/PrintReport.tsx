@@ -1,6 +1,72 @@
 import { deviceCategories } from '../../domain/defaults'
 import type { GroupedBalanceRow, ProjectBalance, ScenarioBalance } from '../../domain/types'
 
+/** Stały opis celu raportu (przyłącze Enea, Mikran Wysogotowo). */
+const REPORT_PURPOSE = `Niniejszy bilans mocy został sporządzony w celu ustalenia wymaganej mocy przyłącza energetycznego do obiektu firmy Mikran, ul. Zbożowa, Wysogotowo, na potrzeby postępowania w sprawie przyłączenia do sieci dystrybucyjnej Enea (operator sieci dystrybucyjnej).
+
+Dokument zestawia szacunkowe moce zainstalowane (Pinst) i obliczeniowe (Pobl) odbiorników według stref i kategorii, w wariantach scenariuszowych (praca normalna, zima, lato, tryb rezerwowy), z uwzględnieniem rezerwy mocy oraz — jeśli skonfigurowano — wpływu magazynu energii. Na tej podstawie wyznaczana jest szacunkowa moc netto potrzebna do doboru mocy umownej przyłącza.
+
+Wyniki mają charakter szacunkowy i opierają się na założeniach wskazanych w tabelach poniżej; ostateczną moc przyłącza określa operator sieci po weryfikacji dokumentacji i warunków przyłączenia.`
+
+/** Prompt do wklejenia lub przekazania modelowi LLM wraz z tym PDF. */
+const LLM_REVIEW_PROMPT = `Jesteś doświadczonym inżynierem elektrykiem i specjalistą od przyłączeń do sieci dystrybucyjnej w Polsce. Przeanalizuj załączony raport bilansu mocy (PDF) dla obiektu firmy Mikran, ul. Zbożowa, Wysogotowo — dokument przygotowywany pod ustalenie mocy przyłącza od operatora Enea.
+
+Oceń:
+1. Czy wyznaczona moc netto i proponowana wielkość przyłącza są realistyczne dla tego typu obiektu (magazyn z częścią biurową, serwerownia, technologia produkcyjna)?
+2. Czy w obliczeniach i założeniach (współczynniki jednoczesności i wykorzystania, rezerwa, scenariusze sezonowe, COP pomp ciepła / klimatyzacji / CWU, magazyn energii, rozróżnienie mocy cieplnej i elektrycznej) nie ma błędów logicznych lub rażących nieścisłości?
+3. Czego brakuje w bilansie lub dokumentacji, aby złożyć wiarygodne zgłoszenie do operatora (np. współczynnik mocy, moc bierna, rozdzielenie faz, prądy rozruchowe, UPS i zasilanie rezerwowe, normy PN-EN, tabele jednoczesności branżowych)?
+4. Jakie korekty lub dodatkowe dane rekomendujesz przed złożeniem do Enea?
+
+Odpowiedz strukturalnie po polsku, wskazując konkretne tabele, scenariusze i pozycje z PDF, gdzie to możliwe. Rozróżniaj usterki krytyczne od sugestii ulepszeń.`
+
+const GLOSSARY_ITEMS: Array<{ term: string; description: string }> = [
+  {
+    term: 'Pinst — moc zainstalowana [kW]',
+    description:
+      'Suma mocy elektrycznych urządzeń „na papierze”, jakby wszystkie pracowały jednocześnie na pełnej mocy znamionowej. Przy zwykłych odbiornikach: ilość × moc jednostkowa [kW] albo powierzchnia × gęstość mocy [W/m²]. Przy pompach ciepła, klimatyzacji i CWU (gdy liczone z powierzchni lub osób): najpierw wyznacza się moc termiczną, potem dzieli przez COP — stąd w tabeli odbiorników osobne kolumny Pciel/Pchł/PcWU.',
+  },
+  {
+    term: 'Pobl — moc obliczeniowa [kW]',
+    description:
+      'Moc faktycznie brana do bilansu przyłącza — mniejsza niż Pinst, bo nie wszystkie urządzenia pracują naraz i rzadko na 100% mocy. Wzór dla każdego odbiornika: Pobl = Pinst × współczynnik jednoczesności × współczynnik wykorzystania. Sumy w scenariuszach to zsumowane Pobl aktywnych urządzeń w danym wariancie (zima, lato itd.).',
+  },
+  {
+    term: 'Współczynnik jednoczesności (kd)',
+    description:
+      'Określa, jaka część zainstalowanych urządzeń może pracować w tym samym momencie w szczycie. Np. 0,50 oznacza, że statystycznie połowa mocy może być włączona naraz (wiele stanowisk, ale nie wszystkie jednocześnie). Wartość zawsze między 0 a 1.',
+  },
+  {
+    term: 'Współczynnik wykorzystania (kw)',
+    description:
+      'Określa, jak intensywnie urządzenie pracuje w czasie, gdy jest włączone — czy cały czas na pełnej mocy, czy częściowo (obciążenie 70%, przerwy, praca sezonowa). Także między 0 a 1. Razem z kd obniża Pinst do realistycznej Pobl.',
+  },
+  {
+    term: 'Pciel / Pchł / PcWU — moc termiczna [kW]',
+    description:
+      'Dla ogrzewania (Pciel), chłodzenia (Pchł) i ciepłej wody użytkowej (PcWU): moc cieplna lub chłodnicza przed przeliczeniem na prąd. Kolumny „Pciel i” / „Pciel o” to odpowiednio moc termiczna zainstalowana i obliczeniowa (po kd i kw). Przy braku COP (zwykły odbiornik) kolumny termiczne mają „—”.',
+  },
+  {
+    term: 'COP',
+    description:
+      'Współczynnik wydajności urządzenia grzewczego lub chłodniczego: ile kW ciepła (lub chłodu) daje 1 kW energii elektrycznej. Im wyższy COP, tym mniejsza moc elektryczna przy tej samej mocy termicznej. Przykład: 40 kW ciepła ÷ COP 3,5 ≈ 11,4 kW el. w Pinst.',
+  },
+  {
+    term: 'S — moc pozorna [kVA]',
+    description:
+      'Moc widziana przez sieć przy danym cos φ (współczynnik mocy): S = P / cos φ. Operator przyłącza interesuje też obciążenie transformatora i przewodów w kVA, nie tylko moc czynna w kW.',
+  },
+  {
+    term: 'Rezerwa [%]',
+    description:
+      'Dodatkowy zapas projektowy liczony od sumy Pobl w scenariuszu (np. 15%): uwzględnia niepewność danych, przyszłą rozbudowę i margines bezpieczeństwa. „Netto bez magazynu” = Pobl + rezerwa.',
+  },
+  {
+    term: 'Netto po magazynie / różnica',
+    description:
+      'Jeśli skonfigurowano magazyn energii, końcowa moc netto jest skorygowana o ładowanie, rozładowanie lub redukcję szczytu (zależnie od trybu). Różnica między „po magazynie” a „bez magazynu” pokazuje, o ile magazyn zmienia wymaganą moc przyłącza w danym scenariuszu.',
+  },
+]
+
 const formatPower = (value: number) => `${value.toFixed(2)} kW`
 const formatKva = (value: number) => `${value.toFixed(2)} kVA`
 
@@ -200,14 +266,41 @@ export function PrintReport({ balance }: { balance: ProjectBalance }) {
     <div className="print-report print-only">
       <header className="print-report-header">
         <div>
-          <p className="print-eyebrow">Bilans energii</p>
+          <p className="print-eyebrow">Bilans mocy — przyłącze do sieci</p>
           <h1>{project.name}</h1>
           <p className="print-header-sub">
-            {project.buildingType}
+            Mikran · ul. Zbożowa, Wysogotowo · {project.buildingType}
             {project.exportFileName ? ` · ${project.exportFileName}` : ''} · {printedAt}
           </p>
         </div>
       </header>
+
+      <section className="print-purpose">
+        <h2>Cel dokumentu</h2>
+        {REPORT_PURPOSE.split('\n\n').map((paragraph) => (
+          <p key={paragraph.slice(0, 40)}>{paragraph}</p>
+        ))}
+      </section>
+
+      <section className="print-glossary">
+        <h2>Skróty i współczynniki — jak czytać tabele</h2>
+        <p className="print-glossary-lead">
+          Poniższe pojęcia powtarzają się w nagłówkach kolumn i podsumowaniach scenariuszy. Dla
+          każdego odbiornika najpierw liczona jest moc zainstalowana (Pinst), potem — po uwzględnieniu
+          współczynników — moc obliczeniowa (Pobl) wchodząca do sumy przyłącza.
+        </p>
+        <dl className="print-glossary-list">
+          {GLOSSARY_ITEMS.map((item) => (
+            <div className="print-glossary-item" key={item.term}>
+              <dt>{item.term}</dt>
+              <dd>{item.description}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="print-glossary-formula">
+          <strong>Wzór podstawowy:</strong> Pobl = Pinst × kd × kw
+        </p>
+      </section>
 
       <section className="print-intro">
         <div className="print-split">
@@ -246,6 +339,15 @@ export function PrintReport({ balance }: { balance: ProjectBalance }) {
             zoneNameById={zoneNameById}
           />
         ))}
+      </section>
+
+      <section className="print-llm-prompt">
+        <h2>Prompt do analizy przez model językowy (LLM)</h2>
+        <p className="print-muted print-llm-hint">
+          Skopiuj poniższy tekst razem z wyeksportowanym PDF i wklej do czatu z modelem (np. ChatGPT,
+          Claude, Gemini) jako instrukcję systemową lub pierwszą wiadomość użytkownika.
+        </p>
+        <pre className="print-llm-prompt-text">{LLM_REVIEW_PROMPT}</pre>
       </section>
     </div>
   )

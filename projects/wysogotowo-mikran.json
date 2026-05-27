@@ -32,7 +32,7 @@
       }
     ],
     "energyStorage": {
-      "enabled": false,
+      "enabled": true,
       "capacityKwh": 120,
       "chargePowerKw": 50,
       "dischargePowerKw": 50,
@@ -365,6 +365,26 @@
       "thermalDensityUnit": "Wm3",
       "simultaneityFactor": 0.8,
       "utilizationFactor": 0.85,
+      "cosPhi": 0.9,
+      "phase": "3P",
+      "voltageV": 400,
+      "scenarios": [
+        "normal"
+      ]
+    },
+    {
+      "id": "device-3c250252-730a-4e02-8061-d07fb13da0c0",
+      "name": "Frezarka do metalu, Druk 3D metalu, serwis",
+      "categoryId": "mills",
+      "zoneId": "zone-6e03c313-0bce-4239-9b26-9fa18addff3c",
+      "powerInputMode": "manual",
+      "quantityInputMode": "manual",
+      "quantity": 6,
+      "unitPowerKw": 1,
+      "powerDensityWm2": 40,
+      "thermalDensityUnit": "Wm3",
+      "simultaneityFactor": 0.2,
+      "utilizationFactor": 0.65,
       "cosPhi": 0.9,
       "phase": "3P",
       "voltageV": 400,

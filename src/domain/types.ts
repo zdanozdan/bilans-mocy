@@ -12,6 +12,8 @@ export type DeviceCategoryId =
   | 'energyStorage'
   | 'evChargers'
   | 'technology'
+  | 'mills'
+  | 'printer3d'
   | 'other'
 
 export type ElectricalPhase = '1P' | '3P' | 'DC'

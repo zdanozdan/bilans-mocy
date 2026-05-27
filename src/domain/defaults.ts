@@ -48,6 +48,8 @@ export const zonePowerDensityDefaults: Record<Zone['type'], ZonePowerDensityDefa
   },
   technical: {
     ventilation: 15,
+    mills: 25,
+    printer3d: 15,
     default: 12,
   },
   common: {
@@ -158,6 +160,18 @@ export const deviceCategories: DeviceCategory[] = [
     name: 'Technologia magazynowa',
     defaultSimultaneityFactor: 0.7,
     defaultUtilizationFactor: 0.75,
+  },
+  {
+    id: 'mills',
+    name: 'Frezarki',
+    defaultSimultaneityFactor: 0.5,
+    defaultUtilizationFactor: 0.65,
+  },
+  {
+    id: 'printer3d',
+    name: 'Druk 3D',
+    defaultSimultaneityFactor: 0.55,
+    defaultUtilizationFactor: 0.6,
   },
   {
     id: 'other',
