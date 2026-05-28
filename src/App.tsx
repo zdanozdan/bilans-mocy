@@ -3,6 +3,7 @@ import { calculateProjectBalance, usesCopThermalConversion } from './domain/calc
 import { resolveDeviceZone } from './domain/zones'
 import {
   defaultDevices,
+  defaultEnergySimulation,
   defaultHeatPumpCopMinus20C,
   defaultHeatPumpCopNormal,
   defaultProject,
@@ -55,6 +56,10 @@ const normalizeStoredProject = (storedProject: StoredProject): StoredProject => 
     energyStorage: {
       ...defaultProject.energyStorage,
       ...storedProject.project.energyStorage,
+    },
+    energySimulation: {
+      ...defaultEnergySimulation,
+      ...storedProject.project.energySimulation,
     },
     zones:
       storedProject.project.zones?.length > 0 ? storedProject.project.zones : defaultProject.zones,
@@ -460,7 +465,14 @@ function App() {
       <div className="layout no-print">
         <ProjectForm project={project} onChange={setProject} />
         <DeviceTable devices={devices} project={project} onChange={setDevices} />
-        <ResultsView balance={balance} />
+        <ResultsView
+          balance={balance}
+          devices={devices}
+          project={project}
+          onSimulationConfigChange={(energySimulation) =>
+            setProject({ ...project, energySimulation })
+          }
+        />
       </div>
 
       <PrintReport balance={balance} devices={devices} />

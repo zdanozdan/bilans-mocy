@@ -59,6 +59,36 @@ export interface EnergyStorageConfig {
   roundTripEfficiencyPercent: number
 }
 
+/** Parametry symulacji zużycia energii w profilu dobowym (godz. pracy, temperatury zewnętrzne). */
+export interface EnergySimulationConfig {
+  /** Godzina rozpoczęcia pracy [0–23], domyślnie 8. */
+  workStartHour: number
+  /** Godzina zakończenia pracy [1–24], domyślnie 16. */
+  workEndHour: number
+  /** Godzina startu nocnego dogrzewania przed pracą [0–23], domyślnie 22. */
+  preheatStartHour: number
+  /** Temperatura zewnętrzna [°C] — scenariusz Zima. */
+  externalTempWinterC: number
+  /** Temperatura zewnętrzna [°C] — scenariusz Lato. */
+  externalTempSummerC: number
+  /** Temperatura zewnętrzna [°C] — scenariusz Praca normalna. */
+  externalTempNormalC: number
+  /** Różnica T_out − T_set przy pełnym szczycie chłodzenia [K]. */
+  coolingDesignDeltaK: number
+  /**
+   * Stała czasowa bezwładności cieplnej budynku [h]: C = UA × τ.
+   * Wyższa wartość = wolniejsze nagrzewanie i wolniejsze stygnięcie po obniżce.
+   */
+  buildingThermalTimeConstantH: number
+  /**
+   * Temperatura zadana w nocy / po pracy w scenariuszu zimowym [°C]
+   * (obniżka przed dogrzewaniem).
+   */
+  winterNightSetpointC: number
+  /** Od tej godziny w oknie dogrzewania setpoint rośnie do komfortu na start pracy. */
+  preheatRampStartHour: number
+}
+
 export interface ProjectConfig {
   name: string
   buildingType: string
@@ -82,6 +112,46 @@ export interface ProjectConfig {
   exportFileName?: string
   zones: Zone[]
   energyStorage: EnergyStorageConfig
+  energySimulation?: EnergySimulationConfig
+}
+
+export type EnergySimulationPhase = 'preheat' | 'work' | 'setback'
+
+export interface HourlyEnergyPoint {
+  hour: number
+  label: string
+  phase: EnergySimulationPhase
+  externalTempC: number
+  setpointC: number
+  /** Szacowana temperatura wewnętrzna po tej godzinie (model RC). */
+  indoorTempC: number
+  thermalHeatingKw: number
+  thermalCoolingKw: number
+  electricalHeatingKw: number
+  electricalCoolingKw: number
+  electricalBaseKw: number
+  electricalTotalKw: number
+  energyKwh: number
+}
+
+export interface ScenarioEnergySimulation {
+  scenarioId: ScenarioId
+  scenarioName: string
+  externalTempC: number
+  comfortSetpointC: number
+  setbackSetpointC: number
+  /** Nocna temperatura zadana (obniżka / start dogrzewania). */
+  nightSetpointC: number
+  /** Czy w tym wariancie symulować pompy ciepła (PC). */
+  showHeating: boolean
+  /** Czy w tym wariancie symulować klimatyzację. */
+  showCooling: boolean
+  maxHeatingThermalKw: number
+  maxCoolingThermalKw: number
+  hourly: HourlyEnergyPoint[]
+  dailyEnergyKwh: number
+  peakPowerKw: number
+  peakHour: number
 }
 
 export interface Device {

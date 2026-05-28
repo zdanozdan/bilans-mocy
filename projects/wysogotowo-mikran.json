@@ -40,6 +40,21 @@
       "mode": "peakShaving",
       "roundTripEfficiencyPercent": 92
     },
+    "energySimulation": {
+      "workStartHour": 8,
+      "workEndHour": 16,
+      "preheatStartHour": 17,
+      "externalTempWinterC": -5,
+      "externalTempSummerC": 20,
+      "externalTempNormalC": 5,
+      "coolingDesignDeltaK": 8,
+      "buildingThermalTimeConstantH": 6,
+      "winterNightSetpointC": 10,
+      "preheatRampStartHour": 6,
+      "heatingDesignDeltaK": 25,
+      "heatingWorkLoadFactor": 0.35,
+      "heatingSetbackLoadFactor": 0.2
+    },
     "exportFileName": "projects/wysogotowo-mikran.json"
   },
   "devices": [

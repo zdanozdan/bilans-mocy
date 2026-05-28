@@ -1,4 +1,5 @@
 import { scenarios as defaultScenarios } from './defaults'
+import { buildLlmEnergySimulationReviewPoint } from './energySimulationDisplay'
 import {
   getDeviceScenarioInclusionState,
   type DeviceScenarioInclusionState,
@@ -158,7 +159,7 @@ export const buildDeviceNotesRows = (devices: Device[]): Array<[string, string]>
     .filter((device) => device.notes?.trim())
     .map((device) => [device.name, device.notes!.trim()])
 
-export const buildLlmReviewPrompt = (project: ProjectConfig): string => {
+export const buildLlmReviewPrompt = (project: ProjectConfig, devices: Device[] = []): string => {
   const storage = project.energyStorage
   const reservePercent = project.reservePercent
 
@@ -207,6 +208,11 @@ export const buildLlmReviewPrompt = (project: ProjectConfig): string => {
     })
   }
 
+  const simulationReview = buildLlmEnergySimulationReviewPoint(project, devices)
+  if (simulationReview) {
+    reviewPoints.push(simulationReview)
+  }
+
   const numberedPoints = reviewPoints
     .map((point, index) => `${index + 1}. ${point.title}:\n${point.body}`)
     .join('\n\n')
@@ -224,6 +230,6 @@ Dokonaj krytycznej oceny inżynierskiej według następujących punktów:
 
 ${numberedPoints}
 
-Odpowiedz strukturalnie po polsku. Każdą uwagę poprzyj konkretną liczbą, tabelą lub scenariuszem (Praca normalna, Zima, Lato, Tryb rezerwowy) z załączonego dokumentu. Kategorycznie rozdziel usterki krytyczne (błędy w sztuce, ryzyko awarii zasilania) od sugestii optymizacyjnych.
+Odpowiedz strukturalnie po polsku. Każdą uwagę poprzyj konkretną liczbą, tabelą lub scenariuszem (Praca normalna, Zima, Lato, Tryb rezerwowy) z załączonego dokumentu. W sekcji o symulacji zużycia odwołaj się do wykresów profilu dobowego i parametrów τ, T_zew, T_nocna. Kategorycznie rozdziel usterki krytyczne (błędy w sztuce, ryzyko awarii zasilania) od sugestii optymizacyjnych.
 `
 }

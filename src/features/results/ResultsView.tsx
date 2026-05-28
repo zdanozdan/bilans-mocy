@@ -6,17 +6,24 @@ import {
   getHvacPoblCellSuffix,
   isHvacRowExcludedFromScenarioSum,
 } from '../../domain/hvacDisplay'
+import { EnergySimulationPanel } from '../simulation/EnergySimulationPanel'
 import type {
+  Device,
+  EnergySimulationConfig,
   EnergyStorageConfig,
   GroupedBalanceRow,
   HvacAlternativeBalance,
   ProjectBalance,
+  ProjectConfig,
   ScenarioBalance,
 } from '../../domain/types'
 import { buildBalanceTsv, copyTextToClipboard } from '../../utils/exportBalanceTsv'
 
 interface ResultsViewProps {
   balance: ProjectBalance
+  project: ProjectConfig
+  devices: Device[]
+  onSimulationConfigChange: (config: EnergySimulationConfig) => void
 }
 
 const formatPower = (value: number) => `${value.toFixed(2)} kW`
@@ -163,7 +170,12 @@ function GroupTable({
   )
 }
 
-export function ResultsView({ balance }: ResultsViewProps) {
+export function ResultsView({
+  balance,
+  project,
+  devices,
+  onSimulationConfigChange,
+}: ResultsViewProps) {
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
   const [selectedScenarioId, setSelectedScenarioId] = useState(
     balance.scenarios[0]?.scenario.id ?? 'normal',
@@ -339,6 +351,12 @@ export function ResultsView({ balance }: ResultsViewProps) {
       </div>
 
       <NetPowerComparison scenario={selectedScenario} storage={balance.project.energyStorage} />
+
+      <EnergySimulationPanel
+        devices={devices}
+        project={project}
+        onSimulationConfigChange={onSimulationConfigChange}
+      />
     </section>
   )
 }

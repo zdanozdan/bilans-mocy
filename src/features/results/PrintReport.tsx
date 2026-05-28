@@ -11,6 +11,7 @@ import type {
   ProjectBalance,
   ProjectConfig,
   ScenarioBalance,
+  ScenarioId,
 } from '../../domain/types'
 import {
   buildHvacCategoryTableNote,
@@ -31,7 +32,14 @@ import {
 } from '../../domain/projectAssumptionsDisplay'
 import { ENEA_INDUCTIVE_TAN_PHI_LIMIT } from '../../domain/reactivePower'
 import { scenarios as defaultScenarios } from '../../domain/defaults'
+import {
+  buildEnergySimulationConfigRows,
+  buildEnergySimulationScenarioSummaryRows,
+  ENERGY_SIMULATION_METHODOLOGY_PARAGRAPHS,
+} from '../../domain/energySimulationDisplay'
+import { simulateProjectEnergy } from '../../domain/energySimulation'
 import { getZoneDisplayName } from '../../domain/zones'
+import { HourlyEnergyChart } from '../simulation/HourlyEnergyChart'
 
 /** Stały opis celu raportu (przyłącze Enea, Mikran Wysogotowo). */
 const REPORT_PURPOSE = `Niniejszy bilans mocy został sporządzony w celu ustalenia wymaganej mocy przyłącza energetycznego do obiektu handlowego firmy Mikran, ul. Zbożowa, Wysogotowo (godziny pracy obiektu: 8:00–16:00), na potrzeby postępowania w sprawie przyłączenia do sieci dystrybucyjnej Enea (operator sieci dystrybucyjnej).
@@ -728,6 +736,70 @@ function PrintScenarioSection({
   )
 }
 
+function PrintEnergySimulationSection({
+  project,
+  devices,
+}: {
+  project: ProjectConfig
+  devices: Device[]
+}) {
+  const simulations = simulateProjectEnergy(
+    project,
+    devices,
+    Object.fromEntries(defaultScenarios.map((scenario) => [scenario.id, scenario.name])) as Record<
+      ScenarioId,
+      string
+    >,
+  )
+
+  if (simulations.length === 0) {
+    return null
+  }
+
+  const configRows = buildEnergySimulationConfigRows(project)
+
+  return (
+    <section className="print-energy-simulation">
+      <h2>Symulacja zużycia energii (profil dobowy)</h2>
+      <p className="print-energy-simulation-lead">
+        Poniższe wykresy pokazują szacunkowy rozkład mocy elektrycznej w ciągu doby (kW w każdej
+        godzinie) dla wariantów objętych symulacją. Uzupełniają tabele Pinst/Pobl — pozwalają ocenić,
+        czy szczyt przyłącza wypada w godzinach pracy, dogrzewania czy w nocy.
+      </p>
+      <h3 className="print-subheading">Jak działa model</h3>
+      {ENERGY_SIMULATION_METHODOLOGY_PARAGRAPHS.map((paragraph) => (
+        <p className="print-muted print-energy-method" key={paragraph.slice(0, 48)}>
+          {paragraph}
+        </p>
+      ))}
+      <p className="print-energy-formula">
+        <strong>Sterowanie (godz.):</strong> P<sub>grz</sub> = min(P<sub>zainst</sub>, max(0, UA·(T
+        <sub>zad</sub>−T<sub>zew</sub>) + C·(T<sub>zad</sub>−T<sub>wewn</sub>))) · P<sub>el</sub> =
+        P<sub>grz</sub> / COP(T<sub>zew</sub>)
+      </p>
+      <h3 className="print-subheading">Parametry symulacji</h3>
+      <PrintTable compact headers={['Parametr', 'Wartość']} rows={configRows} />
+      {simulations.map((simulation) => (
+        <div className="print-energy-scenario" key={simulation.scenarioId}>
+          <h3 className="print-subheading">{simulation.scenarioName}</h3>
+          <PrintTable
+            compact
+            headers={['Wskaźnik', 'Wartość']}
+            rows={buildEnergySimulationScenarioSummaryRows(simulation)}
+          />
+          <HourlyEnergyChart
+            className="print-sim-chart"
+            showCooling={simulation.showCooling}
+            showHeating={simulation.showHeating}
+            showIndoorTempLine={simulation.showHeating}
+            simulation={simulation}
+          />
+        </div>
+      ))}
+    </section>
+  )
+}
+
 export function PrintReport({
   balance,
   devices,
@@ -874,13 +946,16 @@ export function PrintReport({
         ))}
       </section>
 
+      <PrintEnergySimulationSection devices={devices} project={project} />
+
       <section className="print-llm-prompt">
         <h2>Prompt do analizy przez model językowy (LLM)</h2>
         <p className="print-muted print-llm-hint">
           Skopiuj poniższy tekst razem z wyeksportowanym PDF i wklej do czatu z modelem (np. ChatGPT,
-          Claude, Gemini) jako instrukcję systemową lub pierwszą wiadomość użytkownika.
+          Claude, Gemini) jako instrukcję systemową lub pierwszą wiadomość użytkownika. Prompt
+          obejmuje także weryfikację symulacji zużycia energii (profil dobowy).
         </p>
-        <pre className="print-llm-prompt-text">{buildLlmReviewPrompt(project)}</pre>
+        <pre className="print-llm-prompt-text">{buildLlmReviewPrompt(project, devices)}</pre>
       </section>
     </div>
   )

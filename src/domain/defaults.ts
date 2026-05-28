@@ -2,6 +2,7 @@ import type {
   Device,
   DeviceCategory,
   DeviceCategoryId,
+  EnergySimulationConfig,
   ProjectConfig,
   Scenario,
   ThermalDensityUnit,
@@ -187,6 +188,19 @@ export const deviceCategories: DeviceCategory[] = [
   },
 ]
 
+export const defaultEnergySimulation: EnergySimulationConfig = {
+  workStartHour: 8,
+  workEndHour: 16,
+  preheatStartHour: 22,
+  externalTempWinterC: -12,
+  externalTempSummerC: 28,
+  externalTempNormalC: 5,
+  coolingDesignDeltaK: 8,
+  buildingThermalTimeConstantH: 6,
+  winterNightSetpointC: 12,
+  preheatRampStartHour: 5,
+}
+
 export const defaultProject: ProjectConfig = {
   name: 'Budynek magazynowo-biurowy',
   buildingType: 'Magazyn z częścią biurową',
@@ -246,6 +260,7 @@ export const defaultProject: ProjectConfig = {
     mode: 'peakShaving',
     roundTripEfficiencyPercent: 92,
   },
+  energySimulation: defaultEnergySimulation,
 }
 
 export const defaultDevices: Device[] = [

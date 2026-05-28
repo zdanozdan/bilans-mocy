@@ -816,6 +816,208 @@ tr.hvac-row-excluded .strong {
   }
 }
 
+.energy-simulation-panel {
+  margin-top: 18px;
+}
+
+.sim-config {
+  margin-bottom: 14px;
+}
+
+.sim-scenario-panel {
+  margin-top: 4px;
+}
+
+.sim-scenario-config {
+  margin: 0 0 12px;
+}
+
+.sim-scenario-config label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.label-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sim-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sim-summary-grid article {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+  padding: 10px 12px;
+}
+
+.sim-summary-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.sim-summary-grid strong {
+  font-size: 15px;
+}
+
+.sim-chart-wrap {
+  margin-bottom: 14px;
+  overflow-x: auto;
+}
+
+.sim-chart {
+  width: 100%;
+  min-width: 640px;
+  height: auto;
+}
+
+.sim-plot-bg {
+  fill: #f8fafc;
+}
+
+.sim-grid-line {
+  stroke: #e2e8f0;
+  stroke-width: 1;
+}
+
+.sim-axis-label {
+  fill: #64748b;
+  font-size: 10px;
+}
+
+.sim-axis-label-right {
+  fill: #94a3b8;
+}
+
+.sim-axis-title {
+  fill: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sim-bar-base {
+  fill: #94a3b8;
+}
+
+.sim-bar-heat {
+  fill: #ea580c;
+}
+
+.sim-bar-cool {
+  fill: #0284c7;
+}
+
+.sim-line-temp {
+  fill: none;
+  stroke: #0f766e;
+  stroke-width: 2;
+}
+
+.sim-line-setpoint {
+  fill: none;
+  stroke: #ea580c;
+  stroke-width: 2;
+}
+
+.sim-line-indoor {
+  fill: none;
+  stroke: #7c3aed;
+  stroke-dasharray: 4 3;
+  stroke-width: 1.5;
+}
+
+.sim-phase-band-work {
+  fill: rgba(34, 197, 94, 0.08);
+  pointer-events: none;
+}
+
+.sim-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sim-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.sim-swatch-base {
+  background: #94a3b8;
+}
+
+.sim-swatch-heat {
+  background: #ea580c;
+}
+
+.sim-swatch-cool {
+  background: #0284c7;
+}
+
+.sim-swatch-temp {
+  background: transparent;
+  border: 2px solid #0f766e;
+  border-radius: 999px;
+  width: 10px;
+  height: 10px;
+}
+
+.sim-swatch-setpoint {
+  background: transparent;
+  border: 2px solid #ea580c;
+  border-radius: 999px;
+  width: 10px;
+  height: 10px;
+}
+
+.sim-swatch-indoor {
+  background: transparent;
+  border: 2px dashed #7c3aed;
+  border-radius: 999px;
+  width: 10px;
+  height: 10px;
+}
+
+.sim-hourly-table {
+  font-size: 12px;
+}
+
+.sim-row-preheat td:first-child {
+  color: #c2410c;
+}
+
+.sim-row-work td:first-child {
+  color: #15803d;
+}
+
+.sim-row-setback td:first-child {
+  color: #64748b;
+}
+
+@media (max-width: 900px) {
+  .sim-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .print-only {
   display: none;
 }
@@ -947,6 +1149,64 @@ tr.hvac-row-excluded .strong {
 .print-hvac-legend {
   margin: 1px 0 0;
   font-size: 7pt;
+}
+
+.print-energy-simulation {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ccc;
+  break-inside: avoid-page;
+}
+
+.print-energy-simulation h2 {
+  margin: 0 0 4px;
+  font-size: 10pt;
+  font-weight: 800;
+}
+
+.print-energy-simulation-lead {
+  margin: 0 0 6px;
+  font-size: 8pt;
+  line-height: 1.4;
+}
+
+.print-energy-method {
+  margin: 0 0 4px;
+  font-size: 7.5pt;
+  line-height: 1.35;
+}
+
+.print-energy-formula {
+  margin: 6px 0 8px;
+  padding: 5px 7px;
+  background: #f5f5f5;
+  border: 1px solid #e5e5e5;
+  font-size: 7.5pt;
+  line-height: 1.35;
+}
+
+.print-energy-scenario {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed #ddd;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.print-sim-chart {
+  margin-top: 6px;
+}
+
+.print-sim-chart .sim-chart {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.print-sim-chart .sim-legend {
+  font-size: 7pt;
+  gap: 4px 8px;
 }
 
 .print-llm-prompt {
@@ -1368,8 +1628,11 @@ tr.hvac-row-excluded .strong {
   .print-reactive-power,
   .print-scenarios-overview,
   .print-scenario-summary,
+  .print-energy-simulation,
+  .print-energy-scenario,
   .print-llm-prompt {
     break-inside: avoid-page;
+    page-break-inside: avoid;
   }
 
   .print-scenario-head,

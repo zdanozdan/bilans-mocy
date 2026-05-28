@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultProject } from './defaults'
+import { defaultDevices, defaultProject } from './defaults'
 import {
   buildHeatPumpSoftStartAssumptionRow,
   buildLlmReviewPrompt,
@@ -53,7 +53,7 @@ describe('buildLlmReviewPrompt', () => {
   })
 
   it('includes peak shaving analysis after PV when storage is enabled', () => {
-    const prompt = buildLlmReviewPrompt(defaultProject)
+    const prompt = buildLlmReviewPrompt(defaultProject, defaultDevices)
 
     expect(prompt).toContain('ANALIZA SKONFIGUROWANEGO MAGAZYNU')
     expect(prompt).toContain('CZY MAGAZYN ENERGII MA SENS')
